@@ -1,0 +1,10 @@
+Hello {{studentName}},
+
+Your student account has been created for {{instituteName}}.
+Parent ({{parentName}}) can use the same credentials.
+
+Login URL: {{loginUrl}}
+Login ID: {{loginId}}
+Temporary Password: {{temporaryPassword}}
+
+Please change the password after first login.

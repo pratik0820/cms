@@ -1,0 +1,418 @@
+
+
+===== PAGE 1 =====
+Class Management System – Phase 1 Requirements
+1. User Roles
+The system will support the following roles with different access levels:
+1. Super Admin
+(Owner / Head)
+Permissions:
+View complete analytics
+Manage admins
+Manage teachers
+Manage students
+View financial overview
+View teacher performance
+View student performance
+View syllabus completion
+View feedback
+View attendance
+View tests & performance
+2. Admin
+(Main operational role)
+Permissions:
+Add / Edit Students
+Add / Edit Teachers
+Manage Admissions
+Manage Attendance
+Manage Fees
+Manage Stationery
+Manage Timetable
+Upload syllabus
+Track syllabus completion
+Upload test results
+Manage lead enquiries
+Generate reports
+Admin is responsible for most daily entries.
+3. Teacher
+
+
+===== PAGE 2 =====
+Teacher can:
+Login to teacher dashboard
+Mark class start (IN)
+Mark class end (OUT)
+Enter topics taught
+Select chapter / subtopics covered
+Assign homework
+Assign assignments
+Upload weekly syllabus plan
+Enter test marks
+Add remarks about student
+Teacher cannot see student feedback about them.
+4. Student
+Students can:
+Login to student portal
+View attendance
+View test results
+View syllabus progress
+View homework
+View assignments
+Give lecture feedback
+View teacher announcements
+5. Parent
+Parents can view:
+Student attendance
+Test marks
+Performance report
+Fee status
+Syllabus progress
+Teacher remarks
+Notifications
+Parents see only their child’s data.
+2. Branch Management
+The system must support 2 branches.
+Features:
+Each branch has separate:
+
+
+===== PAGE 3 =====
+students
+teachers
+attendance
+fee records
+reports
+Example:
+Branch 1 – Main
+Branch 2 – Baner
+Dashboard filters:
+branch wise
+overall
+3. Student Management
+Admin can add student with following fields:
+Basic Details
+Student Name
+Photo (Mandatory before final submission)
+Date of Birth
+Gender
+Mobile number
+Parent name
+Parent phone number
+Email
+Address
+School name
+Standard
+Academic Details
+Board (SSC / CBSE / ICSE)
+Subjects enrolled
+Batch assigned
+Branch assigned
+Login
+When student is created:
+System automatically generates:
+Student Login ID
+Password
+
+
+===== PAGE 4 =====
+Parent and student can use the same login.
+4. Admission Management
+The admission process must include:
+1. Inquiry Stage
+Lead capture form fields:
+Student Name
+Parent Name
+Phone Number
+Email
+Standard
+School
+Subjects interested
+Branch
+Source of Inquiry
+Important for marketing analytics:
+Options:
+Parent referral
+Friend referral
+Teacher referral
+Banner / Board
+Pamphlet
+Social media
+Other
+Admin must see:
+Lead source analytics
+Conversion ratio
+2. Admission Confirmation
+When admission is confirmed:
+System creates:
+Student profile
+Login credentials
+Subject allocation
+Fee structure
+
+
+===== PAGE 5 =====
+5. Attendance Management
+Attendance will be managed by Admin.
+Fields:
+Present
+Absent
+Leave
+Reason for leave
+Filters:
+Daily
+Weekly
+Monthly
+6. Teacher Class Tracking (IN / OUT)
+Teachers must mark class session.
+Workflow:
+Teacher opens mobile app:
+Step 1
+Press Class Start (IN)
+Step 2
+Select:
+Batch
+Subject
+Topic
+Step 3
+Press Class End (OUT)
+System records:
+Start time
+End time
+Total lecture duration
+This helps calculate:
+teacher hours
+payouts
+
+
+===== PAGE 6 =====
+7. Teacher Payout Tracking
+System must track teacher hours automatically.
+Inputs:
+Lecture start time
+Lecture end time
+Outputs:
+Total hours taken
+Total classes taken
+Used for calculating:
+Teacher payments per hour.
+8. Timetable & Calendar
+Admin must create monthly timetable.
+Example:
+Teacher A:
+4:30 – 5:30 → 9th CBSE
+5:30 – 6:30 → 9th SSC
+Teacher dashboard will show:
+Daily schedule
+Upcoming classes
+Teacher only needs to update topic taught.
+9. Syllabus Management
+Admin uploads syllabus structure.
+Example:
+Subject → Maths
+Chapters:
+Algebra
+Geometry
+Each chapter contains:
+
+
+===== PAGE 7 =====
+Subtopics
+Problems
+Teachers will select topics covered during class.
+Example:
+Chapter: Algebra
+Checkbox selection:
+✔  Linear equations
+✔  Practice problems
+This avoids manual typing.
+Syllabus Completion Tracking
+System should show:
+Chapter wise progress
+Subject progress
+Batch progress
+Parents should see syllabus coverage.
+Example:
+Maths syllabus → 65% completed.
+10. Homework & Assignment System
+Teacher can assign:
+Homework
+Assignments
+Fields:
+Subject
+Description
+Due date
+Students can view it in their dashboard.
+11. Online Test Management
+System should support MCQ tests.
+They currently use Google Forms but want internal system.
+
+
+===== PAGE 8 =====
+Features:
+Admin/Teacher can:
+Create MCQ test
+Share test link with students
+Students can take test on:
+mobile
+laptop
+System records:
+marks
+attempt status
+12. Student Performance Tracking
+System must track:
+Performance parameters
+1. Attendance performance
+2. Test performance
+3. Marks history
+4. Progress trend
+Admin can view:
+student test history
+improvement graph
+13. Student Feedback System
+After each lecture:
+Students receive feedback form.
+Feedback parameters (5 points scale):
+Examples:
+1. Did you understand the lecture?
+2. Was the explanation clear?
+3. Was the pace comfortable?
+4. Did the teacher solve doubts?
+5. Overall lecture quality
+Options:
+
+
+===== PAGE 9 =====
+Excellent
+Good
+Average
+Poor
+Students can add remarks.
+Important rule:
+Teacher cannot see feedback.
+Only Admin and Super Admin can see it.
+14. Fee Management
+Admin must manage fees.
+Features:
+Create fee structure per student.
+Track:
+Total fee
+Paid fee
+Pending fee
+Dashboard should show:
+Total fee collected
+Total pending fees
+Daily fee collection
+15. Stationery Management
+They also sell materials.
+Items include:
+Books
+Bags
+Diaries
+T-shirts
+Study materials
+Admin must track:
+Item given to student
+Pending items
+
+
+===== PAGE 10 =====
+Example:
+Student A
+✔  Maths book given
+✔  Bag given
+✘  T-shirt pending
+16. Student Photo Mandatory
+Admission form must include photo upload.
+If photo not uploaded:
+Form cannot be finalized.
+This is required for:
+result boards
+marketing posters
+17. Reports & Dashboard
+Main dashboard should display:
+Total Students
+Total Teachers
+Total Fees Collected
+Pending Fees
+Active Classes
+Attendance summary
+18. Lecture Reminder System
+When teacher starts next class:
+System must show popup:
+"Last lecture topics covered"
+So teacher knows where they stopped.
+19. System Analytics
+Admin must see:
+Student analytics
+attendance %
+
+
+===== PAGE 11 =====
+marks
+test history
+Teacher analytics
+lectures taken
+hours taken
+syllabus completed
+20. In-App Notifications (Important)
+They explicitly requested notifications inside app.
+No email
+No SMS
+Notifications for Admin
+Admin receives notifications when:
+New admission created
+Fee payment recorded
+Fee pending
+Test results uploaded
+Teacher marked class IN
+Teacher marked class OUT
+Student feedback submitted
+Stationery issued
+New inquiry submitted
+Notifications for Teachers
+Teacher receives notifications when:
+New timetable added
+Upcoming class reminder
+Homework assigned
+Test assigned
+Notifications for Students
+Students receive notifications when:
+Homework assigned
+Assignment assigned
+Test available
+Test result uploaded
+New announcement
+Lecture feedback request
+
+
+===== PAGE 12 =====
+Notifications for Parents
+Parents receive notifications when:
+Student absent
+Test result uploaded
+Fee due
+Teacher remark added
+Parent meeting request
+Syllabus updated
+Phase-1 Core Modules (Final Scope)
+Phase-1 will include:
+1. User Roles System
+2. Branch Management
+3. Student Management
+4. Inquiry / Lead Management
+5. Admission System
+6. Attendance Management
+7. Teacher Class IN/OUT tracking
+8. Teacher hour tracking
+9. Timetable management
+10. Syllabus management
+11. Syllabus completion tracking
+12. Homework & assignment system
+13. Online MCQ tests
+14. Student performance analytics
+15. Lecture feedback system
+16. Fee management
+17. Stationery management
+18. Student photo management
+19. Dashboard analytics
+20. In-app notifications

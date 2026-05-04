@@ -1,0 +1,1 @@
+Your Teacher Account Credentials - {{instituteName}}

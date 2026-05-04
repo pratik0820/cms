@@ -1,0 +1,9 @@
+Hello {{fullName}},
+
+Your super admin account has been created for {{instituteName}}.
+
+Login URL: {{loginUrl}}
+Login Email: {{loginEmail}}
+Temporary Password: {{temporaryPassword}}
+
+Please change your password after your first login.

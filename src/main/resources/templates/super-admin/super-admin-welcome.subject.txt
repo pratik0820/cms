@@ -1,0 +1,1 @@
+Your Super Admin Account Credentials - {{instituteName}}

@@ -1,0 +1,220 @@
+[INFO ] 2026-05-04 10:15:51.532 [background-preinit] Version - HV000001: Hibernate Validator 8.0.1.Final
+[INFO ] 2026-05-04 10:15:51.620 [main] CmsBackendApplication - Starting CmsBackendApplication using Java 21.0.6 with PID 6632 (D:\d folder\CMS\cms-backend\target\classes started by dell in D:\d folder\CMS\cms-backend)
+[DEBUG] 2026-05-04 10:15:51.628 [main] CmsBackendApplication - Running with Spring Boot v3.2.5, Spring v6.1.6
+[INFO ] 2026-05-04 10:15:51.631 [main] CmsBackendApplication - No active profile set, falling back to 1 default profile: "default"
+[INFO ] 2026-05-04 10:15:54.359 [main] RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+[INFO ] 2026-05-04 10:15:54.554 [main] RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 178 ms. Found 10 JPA repository interfaces.
+[INFO ] 2026-05-04 10:15:56.667 [main] TomcatWebServer - Tomcat initialized with port 8095 (http)
+[INFO ] 2026-05-04 10:15:56.693 [main] Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8095"]
+[INFO ] 2026-05-04 10:15:56.700 [main] StandardService - Starting service [Tomcat]
+[INFO ] 2026-05-04 10:15:56.700 [main] StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+[INFO ] 2026-05-04 10:15:56.891 [main] [/cms] - Initializing Spring embedded WebApplicationContext
+[INFO ] 2026-05-04 10:15:56.897 [main] ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 5144 ms
+[DEBUG] 2026-05-04 10:15:57.500 [main] HikariConfig - Driver class org.postgresql.Driver found in Thread context class loader TomcatEmbeddedWebappClassLoader
+  context: cms
+  delegate: true
+----------> Parent Classloader:
+jdk.internal.loader.ClassLoaders$AppClassLoader@76ed5528
+
+[DEBUG] 2026-05-04 10:15:57.549 [main] HikariConfig - CMSHikariPool - configuration:
+[DEBUG] 2026-05-04 10:15:57.555 [main] HikariConfig - allowPoolSuspension.............false
+[DEBUG] 2026-05-04 10:15:57.555 [main] HikariConfig - autoCommit......................true
+[DEBUG] 2026-05-04 10:15:57.556 [main] HikariConfig - catalog.........................none
+[DEBUG] 2026-05-04 10:15:57.556 [main] HikariConfig - connectionInitSql...............none
+[DEBUG] 2026-05-04 10:15:57.557 [main] HikariConfig - connectionTestQuery.............none
+[DEBUG] 2026-05-04 10:15:57.560 [main] HikariConfig - connectionTimeout...............30000
+[DEBUG] 2026-05-04 10:15:57.561 [main] HikariConfig - dataSource......................none
+[DEBUG] 2026-05-04 10:15:57.561 [main] HikariConfig - dataSourceClassName.............none
+[DEBUG] 2026-05-04 10:15:57.562 [main] HikariConfig - dataSourceJNDI..................none
+[DEBUG] 2026-05-04 10:15:57.562 [main] HikariConfig - dataSourceProperties............{password=<masked>}
+[DEBUG] 2026-05-04 10:15:57.562 [main] HikariConfig - driverClassName................."org.postgresql.Driver"
+[DEBUG] 2026-05-04 10:15:57.564 [main] HikariConfig - exceptionOverrideClassName......none
+[DEBUG] 2026-05-04 10:15:57.564 [main] HikariConfig - healthCheckProperties...........{}
+[DEBUG] 2026-05-04 10:15:57.564 [main] HikariConfig - healthCheckRegistry.............none
+[DEBUG] 2026-05-04 10:15:57.565 [main] HikariConfig - idleTimeout.....................600000
+[DEBUG] 2026-05-04 10:15:57.565 [main] HikariConfig - initializationFailTimeout.......1
+[DEBUG] 2026-05-04 10:15:57.565 [main] HikariConfig - isolateInternalQueries..........false
+[DEBUG] 2026-05-04 10:15:57.566 [main] HikariConfig - jdbcUrl.........................jdbc:postgresql://localhost:5432/cms-database
+[DEBUG] 2026-05-04 10:15:57.566 [main] HikariConfig - keepaliveTime...................0
+[DEBUG] 2026-05-04 10:15:57.566 [main] HikariConfig - leakDetectionThreshold..........0
+[DEBUG] 2026-05-04 10:15:57.567 [main] HikariConfig - maxLifetime.....................1800000
+[DEBUG] 2026-05-04 10:15:57.567 [main] HikariConfig - maximumPoolSize.................10
+[DEBUG] 2026-05-04 10:15:57.567 [main] HikariConfig - metricRegistry..................none
+[DEBUG] 2026-05-04 10:15:57.567 [main] HikariConfig - metricsTrackerFactory...........none
+[DEBUG] 2026-05-04 10:15:57.568 [main] HikariConfig - minimumIdle.....................2
+[DEBUG] 2026-05-04 10:15:57.569 [main] HikariConfig - password........................<masked>
+[DEBUG] 2026-05-04 10:15:57.569 [main] HikariConfig - poolName........................"CMSHikariPool"
+[DEBUG] 2026-05-04 10:15:57.569 [main] HikariConfig - readOnly........................false
+[DEBUG] 2026-05-04 10:15:57.569 [main] HikariConfig - registerMbeans..................false
+[DEBUG] 2026-05-04 10:15:57.570 [main] HikariConfig - scheduledExecutor...............none
+[DEBUG] 2026-05-04 10:15:57.570 [main] HikariConfig - schema..........................none
+[DEBUG] 2026-05-04 10:15:57.570 [main] HikariConfig - threadFactory...................internal
+[DEBUG] 2026-05-04 10:15:57.570 [main] HikariConfig - transactionIsolation............default
+[DEBUG] 2026-05-04 10:15:57.571 [main] HikariConfig - username........................"postgres"
+[DEBUG] 2026-05-04 10:15:57.571 [main] HikariConfig - validationTimeout...............5000
+[INFO ] 2026-05-04 10:15:57.571 [main] HikariDataSource - CMSHikariPool - Starting...
+[INFO ] 2026-05-04 10:15:58.153 [main] HikariPool - CMSHikariPool - Added connection org.postgresql.jdbc.PgConnection@3835b281
+[INFO ] 2026-05-04 10:15:58.155 [main] HikariDataSource - CMSHikariPool - Start completed.
+[DEBUG] 2026-05-04 10:15:58.261 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=1, active=1, idle=0, waiting=0)
+[DEBUG] 2026-05-04 10:15:58.263 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=1, active=1, idle=0, waiting=0)
+[INFO ] 2026-05-04 10:15:58.423 [main] VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+[INFO ] 2026-05-04 10:15:58.423 [main] VersionPrinter - See release notes here: https://rd.gt/416ObMi
+[INFO ] 2026-05-04 10:15:58.424 [main] VersionPrinter - 
+[DEBUG] 2026-05-04 10:15:58.456 [CMSHikariPool connection adder] HikariPool - CMSHikariPool - Added connection org.postgresql.jdbc.PgConnection@6c6cf46b
+[WARN ] 2026-05-04 10:15:58.480 [main] Database - Flyway upgrade recommended: PostgreSQL 17.2 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 15.
+[INFO ] 2026-05-04 10:15:58.538 [main] DbValidate - Successfully validated 0 migrations (execution time 00:00.034s)
+[WARN ] 2026-05-04 10:15:58.540 [main] DbValidate - No migrations found. Are your locations set up correctly?
+[INFO ] 2026-05-04 10:15:58.565 [main] DbMigrate - Current version of schema "public": << Empty Schema >>
+[INFO ] 2026-05-04 10:15:58.572 [main] DbMigrate - Schema "public" is up to date. No migration necessary.
+[DEBUG] 2026-05-04 10:15:58.634 [CMSHikariPool connection adder] HikariPool - CMSHikariPool - Added connection org.postgresql.jdbc.PgConnection@66949f1b
+[DEBUG] 2026-05-04 10:15:58.651 [CMSHikariPool connection adder] HikariPool - CMSHikariPool - After adding stats (total=3, active=0, idle=3, waiting=0)
+[INFO ] 2026-05-04 10:15:58.855 [main] LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+[INFO ] 2026-05-04 10:15:59.006 [main] Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+[INFO ] 2026-05-04 10:15:59.100 [main] RegionFactoryInitiator - HHH000026: Second-level cache disabled
+[INFO ] 2026-05-04 10:15:59.530 [main] SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+[WARN ] 2026-05-04 10:15:59.635 [main] deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+[INFO ] 2026-05-04 10:16:01.854 [main] JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+[INFO ] 2026-05-04 10:16:02.207 [main] LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+[INFO ] 2026-05-04 10:16:02.869 [main] QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+[DEBUG] 2026-05-04 10:16:04.013 [main] JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+[WARN ] 2026-05-04 10:16:07.236 [main] JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+[INFO ] 2026-05-04 10:16:08.179 [main] EndpointLinksResolver - Exposing 1 endpoint(s) beneath base path '/actuator'
+[INFO ] 2026-05-04 10:16:08.347 [main] DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@58814dc1, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@1ad03f80, org.springframework.security.web.context.SecurityContextHolderFilter@7d028b1d, org.springframework.security.web.header.HeaderWriterFilter@35ad6d3, org.springframework.web.filter.CorsFilter@58817895, org.springframework.security.web.authentication.logout.LogoutFilter@41a17eaa, com.classmanager.cms_backend.security.jwt.JwtAuthenticationFilter@71a7e67, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@233ed910, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@741db103, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@7169a87, org.springframework.security.web.session.SessionManagementFilter@2295bced, org.springframework.security.web.access.ExceptionTranslationFilter@23720740, org.springframework.security.web.access.intercept.AuthorizationFilter@4ca8d446]
+[INFO ] 2026-05-04 10:16:10.223 [main] Http11NioProtocol - Starting ProtocolHandler ["http-nio-8095"]
+[INFO ] 2026-05-04 10:16:10.275 [main] TomcatWebServer - Tomcat started on port 8095 (http) with context path '/cms'
+[INFO ] 2026-05-04 10:16:10.281 [main] SimpleBrokerMessageHandler - Starting...
+[INFO ] 2026-05-04 10:16:10.281 [main] SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@609b91b4]]
+[INFO ] 2026-05-04 10:16:10.283 [main] SimpleBrokerMessageHandler - Started.
+[INFO ] 2026-05-04 10:16:10.327 [main] CmsBackendApplication - Started CmsBackendApplication in 19.615 seconds (process running for 23.593)
+[INFO ] 2026-05-04 10:16:10.351 [main] CmsBackendApplication - Cms Application Started
+[DEBUG] 2026-05-04 10:16:28.273 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:16:28.273 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:16:28.273 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:16:58.278 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:16:58.278 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:16:58.278 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[INFO ] 2026-05-04 10:17:10.150 [MessageBroker-1] WebSocketMessageBrokerStats - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 3, completed tasks = 0]
+[DEBUG] 2026-05-04 10:17:28.285 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:17:28.285 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:17:28.285 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[INFO ] 2026-05-04 10:17:58.119 [background-preinit] Version - HV000001: Hibernate Validator 8.0.1.Final
+[INFO ] 2026-05-04 10:17:58.198 [main] CmsBackendApplicationTests - Starting CmsBackendApplicationTests using Java 21.0.6 with PID 36884 (started by dell in D:\d folder\CMS\cms-backend)
+[DEBUG] 2026-05-04 10:17:58.211 [main] CmsBackendApplicationTests - Running with Spring Boot v3.2.5, Spring v6.1.6
+[INFO ] 2026-05-04 10:17:58.213 [main] CmsBackendApplicationTests - No active profile set, falling back to 1 default profile: "default"
+[DEBUG] 2026-05-04 10:17:58.287 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:17:58.287 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:17:58.289 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[INFO ] 2026-05-04 10:18:01.758 [main] RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+[INFO ] 2026-05-04 10:18:02.012 [main] RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 242 ms. Found 10 JPA repository interfaces.
+[DEBUG] 2026-05-04 10:18:07.858 [main] HikariConfig - Driver class org.postgresql.Driver found in Thread context class loader jdk.internal.loader.ClassLoaders$AppClassLoader@70dea4e
+[DEBUG] 2026-05-04 10:18:08.065 [main] HikariConfig - CMSHikariPool - configuration:
+[DEBUG] 2026-05-04 10:18:08.089 [main] HikariConfig - allowPoolSuspension.............false
+[DEBUG] 2026-05-04 10:18:08.091 [main] HikariConfig - autoCommit......................true
+[DEBUG] 2026-05-04 10:18:08.093 [main] HikariConfig - catalog.........................none
+[DEBUG] 2026-05-04 10:18:08.095 [main] HikariConfig - connectionInitSql...............none
+[DEBUG] 2026-05-04 10:18:08.097 [main] HikariConfig - connectionTestQuery.............none
+[DEBUG] 2026-05-04 10:18:08.099 [main] HikariConfig - connectionTimeout...............30000
+[DEBUG] 2026-05-04 10:18:08.103 [main] HikariConfig - dataSource......................none
+[DEBUG] 2026-05-04 10:18:08.103 [main] HikariConfig - dataSourceClassName.............none
+[DEBUG] 2026-05-04 10:18:08.105 [main] HikariConfig - dataSourceJNDI..................none
+[DEBUG] 2026-05-04 10:18:08.109 [main] HikariConfig - dataSourceProperties............{password=<masked>}
+[DEBUG] 2026-05-04 10:18:08.111 [main] HikariConfig - driverClassName................."org.postgresql.Driver"
+[DEBUG] 2026-05-04 10:18:08.113 [main] HikariConfig - exceptionOverrideClassName......none
+[DEBUG] 2026-05-04 10:18:08.113 [main] HikariConfig - healthCheckProperties...........{}
+[DEBUG] 2026-05-04 10:18:08.115 [main] HikariConfig - healthCheckRegistry.............none
+[DEBUG] 2026-05-04 10:18:08.115 [main] HikariConfig - idleTimeout.....................600000
+[DEBUG] 2026-05-04 10:18:08.117 [main] HikariConfig - initializationFailTimeout.......1
+[DEBUG] 2026-05-04 10:18:08.117 [main] HikariConfig - isolateInternalQueries..........false
+[DEBUG] 2026-05-04 10:18:08.119 [main] HikariConfig - jdbcUrl.........................jdbc:postgresql://localhost:5432/cms-database
+[DEBUG] 2026-05-04 10:18:08.121 [main] HikariConfig - keepaliveTime...................0
+[DEBUG] 2026-05-04 10:18:08.121 [main] HikariConfig - leakDetectionThreshold..........0
+[DEBUG] 2026-05-04 10:18:08.121 [main] HikariConfig - maxLifetime.....................1800000
+[DEBUG] 2026-05-04 10:18:08.123 [main] HikariConfig - maximumPoolSize.................10
+[DEBUG] 2026-05-04 10:18:08.125 [main] HikariConfig - metricRegistry..................none
+[DEBUG] 2026-05-04 10:18:08.125 [main] HikariConfig - metricsTrackerFactory...........none
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - minimumIdle.....................2
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - password........................<masked>
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - poolName........................"CMSHikariPool"
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - readOnly........................false
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - registerMbeans..................false
+[DEBUG] 2026-05-04 10:18:08.127 [main] HikariConfig - scheduledExecutor...............none
+[DEBUG] 2026-05-04 10:18:08.131 [main] HikariConfig - schema..........................none
+[DEBUG] 2026-05-04 10:18:08.131 [main] HikariConfig - threadFactory...................internal
+[DEBUG] 2026-05-04 10:18:08.131 [main] HikariConfig - transactionIsolation............default
+[DEBUG] 2026-05-04 10:18:08.131 [main] HikariConfig - username........................"postgres"
+[DEBUG] 2026-05-04 10:18:08.133 [main] HikariConfig - validationTimeout...............5000
+[INFO ] 2026-05-04 10:18:08.133 [main] HikariDataSource - CMSHikariPool - Starting...
+[INFO ] 2026-05-04 10:18:08.789 [main] HikariPool - CMSHikariPool - Added connection org.postgresql.jdbc.PgConnection@79ae3fb1
+[INFO ] 2026-05-04 10:18:08.796 [main] HikariDataSource - CMSHikariPool - Start completed.
+[DEBUG] 2026-05-04 10:18:08.900 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=1, active=1, idle=0, waiting=0)
+[DEBUG] 2026-05-04 10:18:08.903 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=1, active=1, idle=0, waiting=0)
+[DEBUG] 2026-05-04 10:18:09.075 [CMSHikariPool connection adder] HikariPool - CMSHikariPool - Added connection org.postgresql.jdbc.PgConnection@65bb1250
+[INFO ] 2026-05-04 10:18:09.085 [main] VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+[INFO ] 2026-05-04 10:18:09.085 [main] VersionPrinter - See release notes here: https://rd.gt/416ObMi
+[INFO ] 2026-05-04 10:18:09.085 [main] VersionPrinter - 
+[DEBUG] 2026-05-04 10:18:09.089 [CMSHikariPool connection adder] HikariPool - CMSHikariPool - After adding stats (total=2, active=0, idle=2, waiting=0)
+[WARN ] 2026-05-04 10:18:09.145 [main] Database - Flyway upgrade recommended: PostgreSQL 17.2 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 15.
+[INFO ] 2026-05-04 10:18:09.207 [main] DbValidate - Successfully validated 0 migrations (execution time 00:00.031s)
+[WARN ] 2026-05-04 10:18:09.207 [main] DbValidate - No migrations found. Are your locations set up correctly?
+[INFO ] 2026-05-04 10:18:09.238 [main] DbMigrate - Current version of schema "public": << Empty Schema >>
+[INFO ] 2026-05-04 10:18:09.254 [main] DbMigrate - Schema "public" is up to date. No migration necessary.
+[INFO ] 2026-05-04 10:18:09.769 [main] LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+[INFO ] 2026-05-04 10:18:10.052 [main] Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+[INFO ] 2026-05-04 10:18:10.192 [main] RegionFactoryInitiator - HHH000026: Second-level cache disabled
+[INFO ] 2026-05-04 10:18:10.665 [main] SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+[WARN ] 2026-05-04 10:18:10.869 [main] deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+[INFO ] 2026-05-04 10:18:14.694 [main] JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+[INFO ] 2026-05-04 10:18:15.099 [main] LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+[INFO ] 2026-05-04 10:18:16.597 [main] QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+[WARN ] 2026-05-04 10:18:21.591 [main] JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+[INFO ] 2026-05-04 10:18:23.430 [main] EndpointLinksResolver - Exposing 1 endpoint(s) beneath base path '/actuator'
+[INFO ] 2026-05-04 10:18:23.684 [main] DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@bdb4bfe, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@2ce37955, org.springframework.security.web.context.SecurityContextHolderFilter@78b9ef0c, org.springframework.security.web.header.HeaderWriterFilter@717b5af1, org.springframework.web.filter.CorsFilter@60e6045c, org.springframework.security.web.authentication.logout.LogoutFilter@5c432e40, com.classmanager.cms_backend.security.jwt.JwtAuthenticationFilter@79b24f79, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@63574fbf, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@381a4407, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5dce3e, org.springframework.security.web.session.SessionManagementFilter@2603ad0a, org.springframework.security.web.access.ExceptionTranslationFilter@912e308, org.springframework.security.web.access.intercept.AuthorizationFilter@4eb42e05]
+[INFO ] 2026-05-04 10:18:26.692 [main] SimpleBrokerMessageHandler - Starting...
+[INFO ] 2026-05-04 10:18:26.692 [main] SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5ca69552]]
+[INFO ] 2026-05-04 10:18:26.695 [main] SimpleBrokerMessageHandler - Started.
+[INFO ] 2026-05-04 10:18:26.745 [main] CmsBackendApplicationTests - Started CmsBackendApplicationTests in 29.217 seconds (process running for 31.776)
+[INFO ] 2026-05-04 10:18:27.786 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - Stopping...
+[INFO ] 2026-05-04 10:18:27.786 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5ca69552]]
+[INFO ] 2026-05-04 10:18:27.786 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - Stopped.
+[INFO ] 2026-05-04 10:18:27.806 [SpringApplicationShutdownHook] LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+[INFO ] 2026-05-04 10:18:27.822 [SpringApplicationShutdownHook] HikariDataSource - CMSHikariPool - Shutdown initiated...
+[DEBUG] 2026-05-04 10:18:27.822 [SpringApplicationShutdownHook] HikariPool - CMSHikariPool - Before shutdown stats (total=2, active=0, idle=2, waiting=0)
+[DEBUG] 2026-05-04 10:18:27.822 [CMSHikariPool connection closer] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@79ae3fb1: (connection evicted)
+[DEBUG] 2026-05-04 10:18:27.829 [CMSHikariPool connection closer] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@65bb1250: (connection evicted)
+[DEBUG] 2026-05-04 10:18:27.829 [SpringApplicationShutdownHook] HikariPool - CMSHikariPool - After shutdown stats (total=0, active=0, idle=0, waiting=0)
+[INFO ] 2026-05-04 10:18:27.831 [SpringApplicationShutdownHook] HikariDataSource - CMSHikariPool - Shutdown completed.
+[DEBUG] 2026-05-04 10:18:28.298 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:18:28.298 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:18:28.298 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:18:58.308 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:18:58.310 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:18:58.311 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:19:28.326 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:19:28.326 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:19:28.326 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:19:58.333 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:19:58.333 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:19:58.333 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:20:28.341 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:20:28.341 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:20:28.342 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:20:58.345 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:20:58.346 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:20:58.347 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:21:28.349 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:21:28.349 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:21:28.349 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-04 10:21:58.377 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:21:58.379 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:21:58.380 [CMSHikariPool housekeeper] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[INFO ] 2026-05-04 10:22:23.384 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - Stopping...
+[INFO ] 2026-05-04 10:22:23.384 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@609b91b4]]
+[INFO ] 2026-05-04 10:22:23.384 [SpringApplicationShutdownHook] SimpleBrokerMessageHandler - Stopped.
+[INFO ] 2026-05-04 10:22:23.403 [SpringApplicationShutdownHook] LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+[INFO ] 2026-05-04 10:22:23.407 [SpringApplicationShutdownHook] HikariDataSource - CMSHikariPool - Shutdown initiated...
+[DEBUG] 2026-05-04 10:22:23.407 [SpringApplicationShutdownHook] HikariPool - CMSHikariPool - Before shutdown stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-04 10:22:23.409 [CMSHikariPool connection closer] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@3835b281: (connection evicted)
+[DEBUG] 2026-05-04 10:22:23.410 [CMSHikariPool connection closer] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@6c6cf46b: (connection evicted)
+[DEBUG] 2026-05-04 10:22:23.410 [CMSHikariPool connection closer] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@66949f1b: (connection evicted)
+[DEBUG] 2026-05-04 10:22:23.411 [SpringApplicationShutdownHook] HikariPool - CMSHikariPool - After shutdown stats (total=0, active=0, idle=0, waiting=0)
+[INFO ] 2026-05-04 10:22:23.411 [SpringApplicationShutdownHook] HikariDataSource - CMSHikariPool - Shutdown completed.

@@ -3,11 +3,11 @@ package com.classmanager.cms_backend.service;
 import com.classmanager.cms_backend.service.jpa.EmailService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnMissingBean(EmailService.class)
+@ConditionalOnProperty(prefix = "aws.ses", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class NoOpEmailService implements EmailService {
 
     private static final Logger log = LogManager.getLogger(NoOpEmailService.class);

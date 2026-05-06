@@ -11,6 +11,9 @@ server:
     mime-types: application/json,application/xml,text/html,text/plain
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: cms-backend
 

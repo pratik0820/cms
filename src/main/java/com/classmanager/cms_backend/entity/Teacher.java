@@ -2,19 +2,14 @@ package com.classmanager.cms_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "teachers", indexes = {
-        @Index(name = "idx_teachers_tenant_branch", columnList = "tenant_id, branch_id")
+        @Index(name = "idx_teachers_branch", columnList = "branch_id")
 })
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Teacher extends BaseEntity {
 

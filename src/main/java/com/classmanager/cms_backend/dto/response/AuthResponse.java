@@ -1,6 +1,5 @@
 package com.classmanager.cms_backend.dto.response;
 
-import com.classmanager.cms_backend.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +20,7 @@ public class AuthResponse {
     // Opaque refresh token — long lived (7 days), stored in DB
     private String refreshToken;
 
+    @Builder.Default
     private String tokenType = "Bearer";
 
     private long accessTokenExpiresIn;  // seconds until expiry
@@ -35,10 +35,9 @@ public class AuthResponse {
     public static class UserInfo {
         private UUID id;
         private String email;
+        private String loginId;
         private String fullName;
         private List<String> roles;
-        private UUID tenantId;
-        private String tenantName;
         private UUID branchId;
         private String branchName;
     }

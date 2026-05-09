@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
-public class CreateAdminRequest {
+public class UpdateAdminRequest {
 
     @NotBlank(message = "Full name is required")
     private String fullName;
@@ -31,11 +31,9 @@ public class CreateAdminRequest {
     @NotBlank(message = "Login ID is required")
     private String loginId;
 
-    @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
 
     @NotBlank(message = "Role is required")

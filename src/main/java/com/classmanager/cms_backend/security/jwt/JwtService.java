@@ -21,17 +21,17 @@ public class JwtService {
     private static final Logger log = LogManager.getLogger(JwtService.class);
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(UUID userId, UUID tenantId, List<String> role, UUID branchId, String email) {
+    public String generateAccessToken(UUID userId, List<String> role, UUID branchId, String email, String loginId) {
 
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessTokenExpiryMs());
 
         return Jwts.builder()
                 .subject(userId.toString())
-                .claim("tenantId", tenantId.toString())
                 .claim("roles", role)
                 .claim("branchId", branchId != null ? branchId.toString() : null)
                 .claim("email", email)
+                .claim("loginId", loginId)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getSigningKey())
@@ -40,11 +40,6 @@ public class JwtService {
 
     public String extractUserId(String token) {
         return extractClaim(token, Claims::getSubject);
-    }
-
-    public UUID extractTenantId(String token) {
-        String tenantId = extractClaim(token, claims -> claims.get("tenantId", String.class));
-        return tenantId != null ? UUID.fromString(tenantId) : null;
     }
 
     public String extractRole(String token) {

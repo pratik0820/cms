@@ -16,23 +16,25 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
 
     Optional<Student> findByIdAndIsDeletedFalse(UUID id);
 
-    Optional<Student> findByIdAndTenantIdAndIsDeletedFalse(UUID id, UUID tenantId);
-
-    Optional<Student> findByLoginIdAndIsDeletedFalse(String loginId);
-
-    Page<Student> findByBranchIdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
-
-    Page<Student> findByBatchIdAndIsDeletedFalseOrderByNameAsc(UUID batchId, Pageable pageable);
+    Page<Student> findByBranch_IdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
 
     Page<Student> findByIsDeletedFalseOrderByNameAsc(Pageable pageable);
 
-    Page<Student> findByTenantIdAndIsDeletedFalseOrderByNameAsc(UUID tenantId, Pageable pageable);
+    long countByIsDeletedFalse();
 
-    boolean existsByLoginIdAndIsDeletedFalse(String loginId);
+    long countByBranch_IdAndIsDeletedFalse(UUID branchId);
 
-    long countByTenantIdAndIsDeletedFalse(UUID tenantId);
+    long countByIsActiveTrueAndIsDeletedFalse();
 
-    long countByBranchIdAndIsDeletedFalse(UUID branchId);
+    long countByCreatedAtBetweenAndIsDeletedFalse(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+    long countByBranch_IdAndCreatedAtBetweenAndIsDeletedFalse(UUID branchId,
+                                                              java.time.LocalDateTime from,
+                                                              java.time.LocalDateTime to);
+
+    long countByCreatedAtBeforeAndIsDeletedFalse(java.time.LocalDateTime before);
+
+    long countByBranch_IdAndCreatedAtBeforeAndIsDeletedFalse(UUID branchId, java.time.LocalDateTime before);
 
     @Query("SELECT s FROM Student s WHERE s.isAdmissionFinal = false AND s.isDeleted = false")
     Page<Student> findDraftAdmissions(Pageable pageable);

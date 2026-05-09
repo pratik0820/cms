@@ -5,13 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.*;
-import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "branches", indexes = {
-        @Index(name = "idx_branches_tenant_id", columnList = "tenant_id")
+        @Index(name = "idx_branches_name", columnList = "name")
 })
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Getter
 @Setter
 @NoArgsConstructor

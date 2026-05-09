@@ -4,19 +4,13 @@ package com.classmanager.cms_backend.entity;
 import com.classmanager.cms_backend.enums.BoardType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "students", indexes = {
-        @Index(name = "idx_students_tenant_branch", columnList = "tenant_id, branch_id"),
-        @Index(name = "idx_students_login_id",      columnList = "login_id",            unique = true)
+        @Index(name = "idx_students_branch", columnList = "branch_id")
 })
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Student extends BaseEntity {
 
@@ -27,10 +21,6 @@ public class Student extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "batch_id")
-    private Batch batch;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -69,10 +59,6 @@ public class Student extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "board")
     private BoardType board;
-
-    /** Auto-generated unique login ID e.g. STU-A3X9KL */
-    @Column(name = "login_id", unique = true)
-    private String loginId;
 
     @Column(name = "admission_date")
     private LocalDate admissionDate;

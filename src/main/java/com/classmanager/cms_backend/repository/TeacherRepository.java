@@ -14,17 +14,23 @@ public interface TeacherRepository extends JpaRepository<Teacher, UUID> {
 
     Optional<Teacher> findByIdAndIsDeletedFalse(UUID id);
 
-    Optional<Teacher> findByIdAndTenantIdAndIsDeletedFalse(UUID id, UUID tenantId);
+    Optional<Teacher> findByUser_IdAndIsDeletedFalse(UUID userId);
 
-    Optional<Teacher> findByUserIdAndIsDeletedFalse(UUID userId);
-
-    Page<Teacher> findByBranchIdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
+    Page<Teacher> findByBranch_IdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
 
     Page<Teacher> findByIsDeletedFalseOrderByNameAsc(Pageable pageable);
 
-    Page<Teacher> findByTenantIdAndIsDeletedFalseOrderByNameAsc(UUID tenantId, Pageable pageable);
+    long countByIsDeletedFalse();
 
-    boolean existsByEmailAndTenantIdAndIsDeletedFalse(String email, UUID tenantId);
+    long countByBranch_IdAndIsDeletedFalse(UUID branchId);
 
-    long countByTenantIdAndIsDeletedFalse(UUID tenantId);
+    long countByIsActiveTrueAndIsDeletedFalse();
+
+    long countByBranch_IdAndIsActiveTrueAndIsDeletedFalse(UUID branchId);
+
+    long countByCreatedAtBetweenAndIsDeletedFalse(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+    long countByBranch_IdAndCreatedAtBetweenAndIsDeletedFalse(UUID branchId,
+                                                              java.time.LocalDateTime from,
+                                                              java.time.LocalDateTime to);
 }

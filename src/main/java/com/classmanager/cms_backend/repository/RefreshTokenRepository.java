@@ -17,7 +17,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    List<RefreshToken> findByUserIdAndRevokedAtIsNull(UUID userId);
+    List<RefreshToken> findByUser_IdAndRevokedAtIsNull(UUID userId);
 
     // Revoke all refresh tokens for a user (used on logout-all-devices)
     @Modifying
@@ -32,5 +32,5 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("DELETE FROM RefreshToken rt WHERE rt.expiresAt < :cutoff")
     void deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff);
 
-    long countByUserIdAndRevokedAtIsNullAndExpiresAtAfter(UUID userId, LocalDateTime now);
+    long countByUser_IdAndRevokedAtIsNullAndExpiresAtAfter(UUID userId, LocalDateTime now);
 }

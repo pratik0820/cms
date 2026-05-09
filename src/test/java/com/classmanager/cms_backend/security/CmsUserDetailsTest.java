@@ -28,17 +28,18 @@ class CmsUserDetailsTest {
 
         User user = User.builder()
                 .email("admin@example.com")
+                .loginId("adm-001")
                 .passwordHash("secret")
                 .fullName("Admin User")
                 .roles(Set.of(role))
                 .isActive(true)
                 .build();
-        user.setTenantId(UUID.randomUUID());
 
         CmsUserDetails userDetails = new CmsUserDetails(user);
 
         assertThat(userDetails.getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
                 .contains("ROLE_ADMIN", "VIEW_STUDENT");
+        assertThat(userDetails.getLoginId()).isEqualTo("adm-001");
     }
 }

@@ -1,9 +1,7 @@
 package com.classmanager.cms_backend.entity;
 
-import com.classmanager.cms_backend.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -16,14 +14,16 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "users", indexes = {
-        @Index(name = "idx_users_tenant_email", columnList = "tenant_id, email", unique = true),
-        @Index(name = "idx_users_email", columnList = "email")
+        @Index(name = "idx_users_email", columnList = "email"),
+        @Index(name = "idx_users_login_id", columnList = "login_id")
 })
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class User extends BaseEntity {
 
     @Column(name = "email", nullable = false)
     private String email;
+
+    @Column(name = "login_id")
+    private String loginId;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
@@ -34,7 +34,9 @@ public class User extends BaseEntity {
     @Column(name = "phone")
     private String phone;
 
-    // Branch association (null for SUPER_ADMIN who spans all branches)
+    @Column(name = "profile_photo_url")
+    private String profilePhotoUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id")
     private Branch branch;
@@ -68,6 +70,7 @@ public class User extends BaseEntity {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
     public boolean isAccountLocked() {

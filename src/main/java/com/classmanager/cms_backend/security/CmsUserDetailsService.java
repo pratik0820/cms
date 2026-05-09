@@ -1,7 +1,6 @@
 package com.classmanager.cms_backend.security;
 
 import com.classmanager.cms_backend.repository.UserRepository;
-import com.classmanager.cms_backend.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,10 +20,9 @@ public class CmsUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String emailOrLoginId) throws UsernameNotFoundException {
-        var user = TenantContext.hasTenant()
-                ? userRepository.findByEmailAndTenantIdAndIsDeletedFalse(emailOrLoginId, TenantContext.getCurrentTenant())
-                    .or(() -> userRepository.findStudentUserByLoginIdAndTenantId(emailOrLoginId, TenantContext.getCurrentTenant()))
-                : userRepository.findByEmailAndIsDeletedFalse(emailOrLoginId);
+        String normalized = emailOrLoginId == null ? "" : emailOrLoginId.trim().toLowerCase();
+        var user = userRepository.findByEmailIgnoreCaseAndIsDeletedFalse(normalized)
+                .or(() -> userRepository.findByLoginIdIgnoreCaseAndIsDeletedFalse(normalized));
 
         return user
                 .map(CmsUserDetails::new)

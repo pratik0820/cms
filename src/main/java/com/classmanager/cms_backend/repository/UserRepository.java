@@ -13,14 +13,17 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    @Query("SELECT u FROM User u WHERE u.email = :email AND u.isDeleted = false")
-    Optional<User> findByEmailAndIsDeletedFalse(@Param("email") String email);
+    @Query("SELECT u FROM User u WHERE lower(u.email) = lower(:email) AND u.isDeleted = false")
+    Optional<User> findByEmailIgnoreCaseAndIsDeletedFalse(@Param("email") String email);
+
+    @Query("SELECT u FROM User u WHERE lower(u.loginId) = lower(:loginId) AND u.isDeleted = false")
+    Optional<User> findByLoginIdIgnoreCaseAndIsDeletedFalse(@Param("loginId") String loginId);
 
     Optional<User> findByIdAndIsDeletedFalse(UUID uuid);
 
-    Optional<User> findByIdAndTenantIdAndIsDeletedFalse(UUID id, UUID tenantId);
+    boolean existsByEmailIgnoreCaseAndIsDeletedFalse(String email);
 
-    boolean existsByEmailAndTenantIdAndIsDeletedFalse(String email, UUID tenantId);
+    boolean existsByLoginIdIgnoreCaseAndIsDeletedFalse(String loginId);
 
     @Modifying
     @Query("UPDATE User u SET u.fcmToken = :fcmToken WHERE u.id = :userId")
@@ -30,16 +33,67 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByPhone(String phone);
 
-    @Query("SELECT u FROM User u WHERE u.email = :email AND u.tenantId = :tenantId AND u.isDeleted = false")
-    Optional<User> findByEmailAndTenantIdAndIsDeletedFalse(@Param("email") String email, @Param("tenantId") UUID requestedTenantId);
+    @Query("""
+            select count(distinct u)
+            from User u
+            join u.roles r
+            where r.name = :roleName
+              and u.isDeleted = false
+            """)
+    long countByRoleName(@Param("roleName") String roleName);
 
     @Query("""
-            SELECT s.user FROM Student s
-            WHERE lower(s.loginId) = lower(:loginId)
-              AND s.tenantId = :tenantId
-              AND s.isDeleted = false
-              AND s.user.isDeleted = false
+            select count(distinct u)
+            from User u
+            join u.roles r
+            where r.name = :roleName
+              and u.branch.id = :branchId
+              and u.isDeleted = false
             """)
-    Optional<User> findStudentUserByLoginIdAndTenantId(@Param("loginId") String loginId,
-                                                       @Param("tenantId") UUID tenantId);
+    long countByRoleNameAndBranchId(@Param("roleName") String roleName, @Param("branchId") UUID branchId);
+
+    @Query("""
+            select count(distinct u)
+            from User u
+            join u.roles r
+            where r.name = :roleName
+              and u.isDeleted = false
+              and u.createdAt >= :from
+              and u.createdAt < :to
+            """)
+    long countByRoleNameCreatedBetween(@Param("roleName") String roleName,
+                                       @Param("from") java.time.LocalDateTime from,
+                                       @Param("to") java.time.LocalDateTime to);
+
+    @Query("""
+            select count(distinct u)
+            from User u
+            join u.roles r
+            where r.name = :roleName
+              and u.branch.id = :branchId
+              and u.isDeleted = false
+              and u.createdAt >= :from
+              and u.createdAt < :to
+            """)
+    long countByRoleNameAndBranchIdCreatedBetween(@Param("roleName") String roleName,
+                                                  @Param("branchId") UUID branchId,
+                                                  @Param("from") java.time.LocalDateTime from,
+                                                  @Param("to") java.time.LocalDateTime to);
+
+    @Query("""
+            select case when count(u) > 0 then true else false end
+            from User u
+            join u.roles r
+            where r.name = :roleName
+              and u.isDeleted = false
+            """)
+    boolean existsByRoleName(@Param("roleName") String roleName);
+
+    @Query("""
+            select count(distinct u)
+            from User u
+            where u.branch.id = :branchId
+              and u.isDeleted = false
+            """)
+    long countByBranchId(@Param("branchId") UUID branchId);
 }

@@ -1,73 +1,114 @@
 # Class Management System API Documentation
 
-## 1. Document Purpose
+## 1. Purpose
 
-This document maps the current backend APIs in this repository and the remaining APIs that need to be created to support the full application shown in the Figma screens.
+This document defines the API contract for the application up to the `Super Admin` phase only.
 
-This document is meant for:
-- Backend developers
-- Frontend developers
-- Product and QA teams
+It is written to support:
+- backend implementation
+- frontend integration
+- QA test case design
+- future role expansion to `ADMIN`, `TEACHER`, `PARENT`, and `STUDENT`
 
-It answers:
-- Which APIs already exist
-- Which APIs are still missing
-- Why each API exists
-- Where each API is used in the application
-- What request and response contract should be used
+This document intentionally excludes deeper role-specific APIs for admin, teacher, parent, and student portals. It stays limited to what is needed for the super admin journey shown in the designs.
 
 ## 2. Scope
 
-This document is based on:
-- The current backend code in this repository
-- The Figma screenshots shared for Admin, Teacher, and Student portals
+This API document is based on:
+- the current backend code in this repository
+- the non-tenant architecture now adopted in the project
+- the super admin designs shared in the screenshots
+- the current schema baseline in `src/main/resources/db/migration/V1__super_admin_foundation.sql`
+- the admin management migration in `src/main/resources/db/migration/V2__admin_management.sql`
 
 Status labels used in this document:
-- `CREATED`: API already exists in backend
-- `PARTIAL`: API or flow exists, but is incomplete
-- `PROPOSED`: API does not exist yet and should be created
+- `IMPLEMENTED`: endpoint already exists in backend
+- `PLANNED`: endpoint is part of the super admin phase contract but is not implemented yet
 
-## 3. Base URL and Common Standards
+## 3. Application Flow Overview
 
-### Base URL
+### 3.1 High-Level Product Flow
 
-All REST APIs are served under:
+The application flow up to the super admin phase is:
+
+1. System starts with no tenant concept and no institute owner flow.
+2. First-time setup creates exactly one independent `SUPER_ADMIN`.
+3. Super admin logs in using email or future-compatible identifier.
+4. Frontend loads current user context and access role.
+5. Super admin lands on the dashboard.
+6. Super admin navigates through management modules:
+   - dashboard
+   - branch overview
+   - admin management
+   - teacher management
+   - student management
+   - leads and admissions
+   - analytics
+   - reports
+   - feedback
+   - attendance overview
+   - test and performance
+   - syllabus completion
+   - stationery overview
+   - timesheet
+   - teacher payout tracking
+   - system settings
+7. All later roles should plug into the same auth foundation using role-based authorization and optional branch scope.
+
+### 3.2 Authentication and Authorization Model
+
+The current backend is designed around:
+- one `users` table for login accounts
+- one `roles` table for role assignment
+- JWT access token for short-lived authorization
+- refresh token table for device/session rotation
+- optional `branch_id` on user for branch-scoped roles later
+
+Current roles:
+- `SUPER_ADMIN`
+- `ADMIN`
+- `TEACHER`
+- `STUDENT`
+- `PARENT`
+
+Super admin rules:
+- only one bootstrap super admin is allowed in a fresh system
+- super admin is not tenant-bound
+- dashboard API is protected by `hasRole('SUPER_ADMIN')`
+
+## 4. Base URL and Standards
+
+### 4.1 Base URL
+
+From `application.yaml`:
 
 ```text
 http://localhost:8095/cms
 ```
 
-Example:
+Examples:
 
 ```text
-http://localhost:8095/cms/api/auth/login
+POST http://localhost:8095/cms/api/auth/login
+GET  http://localhost:8095/cms/api/super-admin/dashboard
 ```
 
-### Common Headers
+### 4.2 Common Headers
 
-For public endpoints:
+Public endpoints:
 
 ```http
 Content-Type: application/json
 ```
 
-For authenticated endpoints:
+Authenticated endpoints:
 
 ```http
 Content-Type: application/json
 Authorization: Bearer <access_token>
 ```
 
-For multipart upload endpoints:
-
-```http
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-```
-
-### Standard Response Envelope
-
-Most current APIs follow this response shape:
+### 4.3 Standard Response Envelope
 
 ```json
 {
@@ -75,169 +116,187 @@ Most current APIs follow this response shape:
   "message": "Operation completed successfully",
   "data": {},
   "errorCode": null,
-  "timestamp": "2026-04-25T20:00:00"
+  "timestamp": "2026-05-08T18:30:00"
 }
 ```
 
-### Pagination Response Shape
+### 4.4 Standard Error Envelope
 
 ```json
 {
-  "success": true,
-  "message": null,
+  "success": false,
+  "message": "Validation failed",
   "data": {
-    "content": [],
-    "pageNumber": 0,
-    "pageSize": 20,
-    "totalElements": 100,
-    "totalPages": 5,
-    "first": true,
-    "last": false
+    "email": "Please provide a valid email address"
   },
-  "timestamp": "2026-04-25T20:00:00"
+  "errorCode": "VALIDATION_ERROR",
+  "timestamp": "2026-05-08T18:30:00"
 }
 ```
 
-### Authentication Model Notes
+### 4.5 Common Error Codes
 
-Current backend behavior:
-- Staff users log in using email
-- Student creation generates a `loginId`
-- Student and parent portal in Figma should use `loginId`, but current login API still expects email
+- `VALIDATION_ERROR`
+- `AUTH_IDENTIFIER_REQUIRED`
+- `AUTH_INVALID_CREDENTIALS`
+- `AUTH_ACCOUNT_DISABLED`
+- `AUTH_ACCOUNT_LOCKED`
+- `AUTH_INVALID_REFRESH_TOKEN`
+- `AUTH_REFRESH_TOKEN_EXPIRED`
+- `AUTH_TOKEN_REUSE`
+- `FORBIDDEN`
+- `INTERNAL_ERROR`
 
-This means the student and parent login flow is currently not fully compatible with the Figma experience.
+## 5. Implementation Order
 
-## 4. Current Created APIs
+Recommended backend delivery order for the super admin phase:
 
-## 4.1 Tenant Registration and Institute Bootstrap
+1. database migration and role seed
+2. bootstrap super admin API
+3. login, refresh, logout, me, change password
+4. dashboard summary API
+5. branch overview APIs
+6. admin management APIs
+7. teacher management APIs
+8. student management APIs
+9. leads and admissions APIs
+10. analytics APIs
+11. reports APIs
+12. feedback APIs
+13. attendance overview APIs
+14. test and performance APIs
+15. syllabus APIs
+16. stationery APIs
+17. timesheet APIs
+18. teacher payout APIs
+19. system settings APIs
 
-### API: Register Tenant / Institute
+## 6. Current Backend Surface
 
-- Status: `CREATED`
-- Purpose: Create a new institute tenant and its default owner account
-- Description: Creates tenant, default branch, and institute owner login
-- Endpoint: `POST /api/tenants/register`
-- Headers:
-  - `Content-Type: application/json`
-- Payload:
+The current codebase has only these super-admin-phase APIs implemented:
 
-```json
-{
-  "instituteName": "Greenfield Public School",
-  "subdomain": "greenfield",
-  "adminEmail": "owner@greenfield.com",
-  "adminPassword": "Password@123",
-  "adminName": "Institute Owner",
-  "contactPhone": "9876543210",
-  "planType": "STARTER"
-}
-```
+- `POST /api/auth/bootstrap/super-admin`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `POST /api/auth/logout-all`
+- `PUT /api/auth/change-password`
+- `GET /api/auth/me`
+- `GET /api/super-admin/dashboard`
+- `GET /api/super-admin/branches/options`
+- `GET /api/super-admin/branches`
+- `GET /api/super-admin/branches/{branchId}`
+- `POST /api/super-admin/branches`
+- `PUT /api/super-admin/branches/{branchId}`
+- `PATCH /api/super-admin/branches/{branchId}/status`
+- `DELETE /api/super-admin/branches/{branchId}`
+- `GET /api/super-admin/admins`
+- `GET /api/super-admin/admins/{adminId}`
+- `POST /api/super-admin/admins`
+- `PUT /api/super-admin/admins/{adminId}`
+- `PATCH /api/super-admin/admins/{adminId}/status`
+- `DELETE /api/super-admin/admins/{adminId}`
 
-- Response:
+Everything else in this document is the approved contract for the super admin phase and should be implemented next.
 
-```json
-{
-  "success": true,
-  "message": "Institute registered successfully. Check your email for login details.",
-  "data": {
-    "id": "tenant-uuid",
-    "name": "Greenfield Public School",
-    "subdomain": "greenfield",
-    "contactEmail": "owner@greenfield.com",
-    "contactPhone": "9876543210",
-    "planType": "STARTER",
-    "isActive": true,
-    "maxStudents": 100,
-    "maxBranches": 1
-  }
-}
-```
+## 7. Authentication APIs
 
-- Where to use:
-  - SaaS onboarding screen
-  - Institute registration flow
-  - Super admin onboarding flow
+## 7.1 Bootstrap Super Admin
 
-### API: Get Tenant by ID
+- Status: `IMPLEMENTED`
+- Endpoint: `POST /api/auth/bootstrap/super-admin`
+- Auth: Public
+- Purpose: Creates the first and only initial super admin account when the system is fresh.
 
-- Status: `CREATED`
-- Purpose: Fetch tenant details
-- Description: Available for platform-level admin use
-- Endpoint: `GET /api/tenants/{tenantId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Path Parameters:
-  - `tenantId`: UUID
-- Response:
-  - Tenant object
-- Where to use:
-  - Platform admin panel
-  - Tenant management console
-
-### API: Activate Tenant
-
-- Status: `CREATED`
-- Purpose: Enable institute account
-- Description: Activates a tenant from the platform side
-- Endpoint: `POST /api/tenants/{tenantId}/activate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
+### Request Payload
 
 ```json
 {
-  "success": true,
-  "message": "Tenant activated",
-  "data": null
-}
-```
-
-- Where to use:
-  - Platform admin tenant controls
-
-### API: Deactivate Tenant
-
-- Status: `CREATED`
-- Purpose: Disable institute account
-- Description: Deactivates a tenant from the platform side
-- Endpoint: `POST /api/tenants/{tenantId}/deactivate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-
-```json
-{
-  "success": true,
-  "message": "Tenant deactivated",
-  "data": null
-}
-```
-
-- Where to use:
-  - Platform admin tenant controls
-
-## 4.2 Authentication APIs
-
-### API: Login
-
-- Status: `CREATED`
-- Purpose: Authenticate user and issue JWT tokens
-- Description: Logs in admin, teacher, or other staff using email and password
-- Endpoint: `POST /api/auth/login`
-- Headers:
-  - `Content-Type: application/json`
-- Payload:
-
-```json
-{
-  "email": "admin@school.com",
+  "fullName": "Super Admin",
+  "email": "superadmin@classmanager.com",
+  "phone": "9876543210",
   "password": "Password@123",
-  "tenantSubdomain": "greenfield",
+  "confirmPassword": "Password@123"
+}
+```
+
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `fullName` | string | Yes | Display name used across profile, header, audit context, and future ownership records. |
+| `email` | string | Yes | Primary login identity for the bootstrap account. Must be unique across all users. |
+| `phone` | string | No | Contact number for future profile, recovery, and notification use. |
+| `password` | string | Yes | Initial credential for super admin login. Stored only as password hash. |
+| `confirmPassword` | string | Yes | Prevents accidental password mismatch during first system setup. |
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Super admin created successfully",
+  "data": {
+    "accessToken": "jwt-access-token",
+    "refreshToken": "opaque-refresh-token",
+    "tokenType": "Bearer",
+    "accessTokenExpiresIn": 900,
+    "user": {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "email": "superadmin@classmanager.com",
+      "loginId": null,
+      "fullName": "Super Admin",
+      "roles": ["SUPER_ADMIN"],
+      "branchId": null,
+      "branchName": null
+    }
+  },
+  "timestamp": "2026-05-08T18:30:00"
+}
+```
+
+### Backend Implementation Steps
+
+1. Validate request body and password confirmation.
+2. Check whether any user already holds role `SUPER_ADMIN`.
+3. Normalize email to lowercase.
+4. Check email uniqueness in `users`.
+5. Load role `SUPER_ADMIN` from `roles`.
+6. Create `users` record with active status.
+7. Hash password using BCrypt.
+8. Save `user_roles` mapping.
+9. Mark login metadata as successful first login.
+10. Generate JWT access token.
+11. Generate and persist refresh token.
+12. Return `AuthResponse` inside `ApiResponse`.
+
+## 7.2 Login
+
+- Status: `IMPLEMENTED`
+- Endpoint: `POST /api/auth/login`
+- Auth: Public
+- Purpose: Authenticates a user and starts a session.
+
+### Request Payload
+
+```json
+{
+  "identifier": "superadmin@classmanager.com",
+  "password": "Password@123",
   "fcmToken": "optional-device-token"
 }
 ```
 
-- Response:
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `identifier` | string | Recommended | Main login field. For super admin and future staff roles this will be email. For students or parents it can later be login ID. |
+| `email` | string | Backward compatible | Legacy support field still accepted by backend. Frontend should now use `identifier`. |
+| `password` | string | Yes | Secret credential used by `AuthenticationManager`. |
+| `fcmToken` | string | No | Device token for push notifications and device-linked session intelligence later. |
+
+### Success Response
 
 ```json
 {
@@ -245,37 +304,44 @@ This means the student and parent login flow is currently not fully compatible w
   "message": "Login successful",
   "data": {
     "accessToken": "jwt-access-token",
-    "refreshToken": "refresh-token",
+    "refreshToken": "opaque-refresh-token",
     "tokenType": "Bearer",
     "accessTokenExpiresIn": 900,
     "user": {
-      "id": "user-uuid",
-      "email": "admin@school.com",
-      "fullName": "Admin User",
-      "roles": ["ADMIN"],
-      "tenantId": "tenant-uuid",
-      "tenantName": "Greenfield Public School",
-      "branchId": "branch-uuid",
-      "branchName": "Main"
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "email": "superadmin@classmanager.com",
+      "loginId": null,
+      "fullName": "Super Admin",
+      "roles": ["SUPER_ADMIN"],
+      "branchId": null,
+      "branchName": null
     }
   }
 }
 ```
 
-- Where to use:
-  - Admin login
-  - Teacher login
-  - Institute owner login
+### Backend Implementation Steps
 
-### API: Refresh Token
+1. Accept `identifier`; if empty, fallback to `email`.
+2. Normalize identifier to lowercase.
+3. Find user by `email` or `login_id`.
+4. Reject disabled account.
+5. Reject temporarily locked account.
+6. Authenticate through Spring Security `AuthenticationManager`.
+7. On failure, increment failed count and set lock if threshold reached.
+8. On success, reset failed count and lock fields.
+9. Save optional `fcmToken`.
+10. Generate new access token and refresh token.
+11. Return user context needed by frontend shell.
 
-- Status: `CREATED`
-- Purpose: Generate new access token
-- Description: Uses refresh token to rotate session and get new access token
+## 7.3 Refresh Token
+
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/auth/refresh`
-- Headers:
-  - `Content-Type: application/json`
-- Payload:
+- Auth: Public
+- Purpose: Issues a fresh access token and rotates refresh token.
+
+### Request Payload
 
 ```json
 {
@@ -283,21 +349,36 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Response:
-  - Same response shape as login
-- Where to use:
-  - Frontend auth interceptor
-  - Silent session renewal
+### Payload Field Purpose
 
-### API: Logout
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `refreshToken` | string | Yes | Long-lived opaque token used to continue the session without forcing user login again. |
 
-- Status: `CREATED`
-- Purpose: Revoke current refresh token
-- Description: Logs out from current device
+### Success Response
+
+Same response shape as login.
+
+### Backend Implementation Steps
+
+1. Hash the incoming refresh token.
+2. Load the token from `refresh_tokens`.
+3. Reject missing, expired, revoked, or reused token.
+4. Revoke all sessions if token reuse is detected.
+5. Load related user and verify account is active.
+6. Mark current token as used.
+7. Create a new access token.
+8. Persist a new refresh token.
+9. Return rotated auth payload.
+
+## 7.4 Logout
+
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/auth/logout`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+- Auth: Authenticated
+- Purpose: Ends session on the current device.
+
+### Request Payload
 
 ```json
 {
@@ -305,7 +386,13 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Response:
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `refreshToken` | string | Yes | Identifies the specific device session that should be revoked. |
+
+### Success Response
 
 ```json
 {
@@ -315,19 +402,26 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Where to use:
-  - Logout button
-  - Session termination
+### Backend Implementation Steps
 
-### API: Logout All Devices
+1. Require valid access token.
+2. Hash supplied refresh token.
+3. Find matching row in `refresh_tokens`.
+4. Mark token revoked with reason `USER_LOGOUT`.
+5. Return success envelope.
 
-- Status: `CREATED`
-- Purpose: Revoke all refresh tokens for current user
-- Description: Logs user out from all devices
+## 7.5 Logout All Devices
+
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/auth/logout-all`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
+- Auth: Authenticated
+- Purpose: Revokes every active session for the logged-in user.
+
+### Request Payload
+
+No payload.
+
+### Success Response
 
 ```json
 {
@@ -337,19 +431,20 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Where to use:
-  - Security settings
-  - Profile account controls
+### Backend Implementation Steps
 
-### API: Change Password
+1. Resolve current user from JWT.
+2. Revoke all refresh tokens for `user_id`.
+3. Return success envelope.
 
-- Status: `CREATED`
-- Purpose: Change password for current user
-- Description: Requires current password
+## 7.6 Change Password
+
+- Status: `IMPLEMENTED`
 - Endpoint: `PUT /api/auth/change-password`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+- Auth: Authenticated
+- Purpose: Changes password for the current user.
+
+### Request Payload
 
 ```json
 {
@@ -359,7 +454,15 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Response:
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `currentPassword` | string | Yes | Prevents unauthorized password change from an already open session. |
+| `newPassword` | string | Yes | New credential to be stored as secure hash. |
+| `confirmPassword` | string | Yes | Prevents accidental mismatch before password replacement. |
+
+### Success Response
 
 ```json
 {
@@ -369,2077 +472,1538 @@ This means the student and parent login flow is currently not fully compatible w
 }
 ```
 
-- Where to use:
-  - My profile
-  - Security settings
+### Backend Implementation Steps
 
-### API: Get Current User
+1. Resolve current user.
+2. Load user from database.
+3. Validate current password against stored hash.
+4. Validate new password confirmation.
+5. Hash and replace password.
+6. Revoke all refresh tokens for security.
+7. Return success envelope.
 
-- Status: `CREATED`
-- Purpose: Fetch current user profile basics
-- Description: Returns role and tenant context for route guards and UI shell
+## 7.7 Current User
+
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/auth/me`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
+- Auth: Authenticated
+- Purpose: Returns user context required to initialize frontend shell.
+
+### Request Payload
+
+No payload.
+
+### Success Response
 
 ```json
 {
   "success": true,
   "data": {
-    "id": "user-uuid",
-    "email": "admin@school.com",
-    "roles": ["ADMIN"],
-    "tenantId": "tenant-uuid",
-    "branchId": "branch-uuid"
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "email": "superadmin@classmanager.com",
+    "loginId": null,
+    "fullName": "Super Admin",
+    "roles": ["SUPER_ADMIN"],
+    "branchId": null,
+    "branchName": null
   }
 }
 ```
 
-- Where to use:
-  - Frontend bootstrap
-  - Sidebar and role-based navigation
-  - Route protection
+### Backend Implementation Steps
 
-## 4.3 User Management APIs
+1. Resolve current user from JWT.
+2. Map `User` entity to `AuthResponse.UserInfo`.
+3. Return shell-safe context only.
 
-## 4.3.1 Admin APIs
+## 8. Super Admin Dashboard APIs
 
-### API: Create Admin
+## 8.1 Dashboard Summary
 
-- Status: `CREATED`
-- Purpose: Create institute admin user
-- Description: Creates admin account under current tenant
-- Endpoint: `POST /api/users/admins`
-- Headers:
-  - `Authorization: Bearer <token>`
-  - `Content-Type: application/json`
-- Payload:
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/dashboard`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the super admin dashboard shown in the design.
 
-```json
-{
-  "fullName": "Branch Admin",
-  "email": "branch.admin@school.com",
-  "phone": "9876543210",
-  "branchId": "branch-uuid"
-}
-```
+### Query Parameters
 
-- Response:
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `branchId` | UUID | No | Filters dashboard metrics for a single branch. If missing, return all-branch aggregate. |
+| `fromDate` | date | No | Lower date bound for fee, attendance, lead, activity, class, test, and feedback records. |
+| `toDate` | date | No | Upper date bound for dashboard data. |
+
+### Default Behavior
+
+- if `toDate` is missing, backend uses current date
+- if `fromDate` is missing, backend uses first day of `toDate` month
+- if `branchId` is missing, backend returns `All Branches`
+
+### Success Response
 
 ```json
 {
   "success": true,
-  "message": "Admin account created successfully.",
   "data": {
-    "id": "admin-uuid",
-    "fullName": "Branch Admin",
-    "email": "branch.admin@school.com",
-    "phone": "9876543210",
-    "role": "ADMIN",
-    "branchId": "branch-uuid",
-    "branchName": "Main",
-    "isActive": true,
-    "createdAt": "2026-04-25T20:00:00"
+    "fromDate": "2026-05-01",
+    "toDate": "2026-05-08",
+    "branchId": null,
+    "branchName": "All Branches",
+    "branches": [
+      {
+        "id": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "name": "Main Branch"
+      }
+    ],
+    "overview": {
+      "totalStudents": {
+        "total": 2453,
+        "changeThisMonth": 120
+      },
+      "totalTeachers": {
+        "total": 87,
+        "changeThisMonth": 5
+      },
+      "totalAdmins": {
+        "total": 12,
+        "changeThisMonth": 1
+      },
+      "totalFeesCollected": {
+        "total": 4875000,
+        "changeThisMonth": 766000
+      },
+      "pendingFees": {
+        "total": 875600,
+        "changeThisMonth": 875600
+      }
+    },
+    "studentGrowth": [
+      {
+        "month": "Jun",
+        "totalStudents": 1780
+      }
+    ],
+    "feeCollection": [
+      {
+        "month": "May",
+        "feesCollected": 766000,
+        "pendingFees": 875600
+      }
+    ],
+    "attendanceOverview": {
+      "present": 208505,
+      "leave": 19632,
+      "absent": 17186,
+      "averageAttendancePercentage": 85.00
+    },
+    "leadConversionOverview": {
+      "stages": [
+        {
+          "label": "Total Leads",
+          "count": 1250,
+          "percentage": 100.00
+        },
+        {
+          "label": "Interested",
+          "count": 650,
+          "percentage": 52.00
+        },
+        {
+          "label": "Converted",
+          "count": 320,
+          "percentage": 25.60
+        },
+        {
+          "label": "Admission",
+          "count": 285,
+          "percentage": 22.80
+        }
+      ]
+    },
+    "recentActivities": [
+      {
+        "type": "NEW_ADMISSION",
+        "title": "New student admission in Main Branch",
+        "description": "Rahul Sharma (10th CBSE)",
+        "branchName": "Main Branch",
+        "createdAt": "2026-05-08T10:20:00"
+      }
+    ],
+    "footerMetrics": {
+      "totalClassesToday": 96,
+      "teachersIn": 42,
+      "studentsPresent": 1985,
+      "testsConducted": 8,
+      "feedbacksReceived": 36
+    }
   }
 }
 ```
 
-- Where to use:
-  - Admin management
-  - System settings
-  - Institute staff setup
-
-## 4.3.2 Teacher APIs
-
-### API: Create Teacher
-
-- Status: `CREATED`
-- Purpose: Register teacher and login account
-- Description: Creates teacher profile and linked user account
-- Endpoint: `POST /api/users/teachers`
-- Headers:
-  - `Authorization: Bearer <token>`
-  - `Content-Type: application/json`
-- Payload:
-
-```json
-{
-  "fullName": "Rahul Sharma",
-  "email": "rahul.sharma@school.com",
-  "phone": "9876543210",
-  "qualification": "M.Sc., B.Ed.",
-  "joiningDate": "2026-04-01",
-  "hourlyRate": 500,
-  "branchId": "branch-uuid"
-}
-```
-
-- Response:
-
-```json
-{
-  "success": true,
-  "message": "Teacher registered. Share the generated credentials with the teacher.",
-  "data": {
-    "id": "teacher-uuid",
-    "userId": "user-uuid",
-    "fullName": "Rahul Sharma",
-    "email": "rahul.sharma@school.com",
-    "phone": "9876543210",
-    "qualification": "M.Sc., B.Ed.",
-    "joiningDate": "2026-04-01",
-    "hourlyRate": 500,
-    "branchId": "branch-uuid",
-    "branchName": "Main",
-    "isActive": true,
-    "generatedLoginEmail": "rahul.sharma@school.com",
-    "generatedPassword": "TempPass@123"
-  }
-}
-```
-
-- Where to use:
-  - Teacher add form
-  - Teacher management
-
-### API: List Teachers
-
-- Status: `CREATED`
-- Purpose: Fetch teachers with pagination
-- Description: Lists teacher records for current tenant
-- Endpoint: `GET /api/users/teachers?page=0&size=20`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `page`
-  - `size`
-- Response:
-  - Paginated teacher list
-- Where to use:
-  - Admin teacher list screen
-  - Teacher selection dropdowns
-
-### API: Get Teacher Details
-
-- Status: `CREATED`
-- Purpose: Fetch single teacher details
-- Description: Returns teacher information by ID
-- Endpoint: `GET /api/users/teachers/{id}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Path Parameters:
-  - `id`: teacher UUID
-- Response:
-  - Teacher detail object
-- Where to use:
-  - Teacher profile drawer
-  - Teacher details page
-
-### API: Reset Teacher Password
-
-- Status: `CREATED`
-- Purpose: Reset teacher password by admin
-- Description: Admin override password reset
-- Endpoint: `POST /api/users/teachers/{id}/reset-password`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "newPassword": "NewPassword@123",
-  "confirmPassword": "NewPassword@123"
-}
-```
-
-- Response:
-
-```json
-{
-  "success": true,
-  "message": "Teacher password reset successfully.",
-  "data": null
-}
-```
-
-- Where to use:
-  - Teacher profile actions
-  - Admin recovery actions
-
-### API: Deactivate Teacher
-
-- Status: `CREATED`
-- Purpose: Disable teacher account
-- Description: Blocks teacher login
-- Endpoint: `POST /api/users/teachers/{id}/deactivate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Success envelope
-- Where to use:
-  - Teacher status controls
-
-### API: Activate Teacher
-
-- Status: `CREATED`
-- Purpose: Re-enable teacher account
-- Description: Restores teacher login access
-- Endpoint: `POST /api/users/teachers/{id}/activate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Success envelope
-- Where to use:
-  - Teacher status controls
-
-## 4.3.3 Student APIs
-
-### API: Create Student
-
-- Status: `CREATED`
-- Purpose: Enroll student and create linked login
-- Description: Creates student in draft admission state
-- Endpoint: `POST /api/users/students`
-- Headers:
-  - `Authorization: Bearer <token>`
-  - `Content-Type: application/json`
-- Payload:
-
-```json
-{
-  "name": "Aarav Singh",
-  "dateOfBirth": "2012-03-14",
-  "gender": "Male",
-  "mobile": "9876543210",
-  "parentName": "Rahul Singh",
-  "parentPhone": "9876543211",
-  "email": "aarav@example.com",
-  "address": "21 Main Street",
-  "schoolName": "Greenfield Public School",
-  "standard": "8th",
-  "board": "CBSE",
-  "branchId": "branch-uuid",
-  "batchId": "batch-uuid"
-}
-```
-
-- Response:
-
-```json
-{
-  "success": true,
-  "message": "Student enrolled in DRAFT state. Upload photo and then finalise admission.",
-  "data": {
-    "id": "student-uuid",
-    "userId": "user-uuid",
-    "name": "Aarav Singh",
-    "loginId": "STU-A3X9KL",
-    "email": "aarav@example.com",
-    "mobile": "9876543210",
-    "parentName": "Rahul Singh",
-    "parentPhone": "9876543211",
-    "standard": "8th",
-    "board": "CBSE",
-    "schoolName": "Greenfield Public School",
-    "isAdmissionFinal": false,
-    "branchId": "branch-uuid",
-    "branchName": "Main",
-    "generatedLoginId": "STU-A3X9KL",
-    "generatedPassword": "TempPass@123",
-    "parentLoginNote": "Parent can use the same Login ID and Password to access the parent portal."
-  }
-}
-```
-
-- Where to use:
-  - Add student form
-  - Admission conversion flow
-
-### API: List Students
-
-- Status: `CREATED`
-- Purpose: Fetch student list
-- Description: Returns paginated student records
-- Endpoint: `GET /api/users/students?page=0&size=20`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `page`
-  - `size`
-- Response:
-  - Paginated student list
-- Where to use:
-  - Students listing page
-  - Admission management
-
-### API: Get Student Details
-
-- Status: `CREATED`
-- Purpose: Fetch one student record
-- Description: Returns detailed student information
-- Endpoint: `GET /api/users/students/{id}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Path Parameters:
-  - `id`: student UUID
-- Response:
-  - Student detail object
-- Where to use:
-  - Student detail drawer
-  - Student overview tab
-
-### API: Upload Student Photo
-
-- Status: `PARTIAL`
-- Purpose: Upload student photo required before admission finalisation
-- Description: Mentioned in flow, but controller endpoint is currently commented out
-- Proposed Final Endpoint: `POST /api/users/students/{id}/photo`
-- Headers:
-  - `Authorization: Bearer <token>`
-  - `Content-Type: multipart/form-data`
-- Payload:
-  - Form field: `photo`
-- Response:
-
-```json
-{
-  "success": true,
-  "message": "Photo uploaded successfully.",
-  "data": "https://cdn.example.com/student-photo.jpg"
-}
-```
-
-- Where to use:
-  - Add student form
-  - Admission edit flow
-
-### API: Finalise Student Admission
-
-- Status: `CREATED`
-- Purpose: Mark admission as complete
-- Description: Requires uploaded photo
-- Endpoint: `POST /api/users/students/{id}/finalise`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Path Parameters:
-  - `id`: student UUID
-- Response:
-  - Updated student response object
-- Where to use:
-  - Admission completion flow
-  - Add student save workflow
-
-### API: Reset Student Password
-
-- Status: `CREATED`
-- Purpose: Reset student login
-- Description: Resets shared student/parent credentials
-- Endpoint: `POST /api/users/students/{id}/reset-password`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "newPassword": "NewPassword@123",
-  "confirmPassword": "NewPassword@123"
-}
-```
-
-- Response:
-  - Success envelope
-- Where to use:
-  - Student profile actions
-  - Parent access recovery
-
-### API: Deactivate Student
-
-- Status: `CREATED`
-- Purpose: Disable student and parent access
-- Description: Blocks login
-- Endpoint: `POST /api/users/students/{id}/deactivate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Success envelope
-- Where to use:
-  - Student status actions
-
-### API: Activate Student
-
-- Status: `CREATED`
-- Purpose: Restore student access
-- Description: Reactivates student account
-- Endpoint: `POST /api/users/students/{id}/activate`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Success envelope
-- Where to use:
-  - Student status actions
-
-## 4.4 Notification APIs
-
-### API: Get Notifications
-
-- Status: `CREATED`
-- Purpose: Fetch user notifications
-- Description: Returns paginated in-app notifications
-- Endpoint: `GET /api/v1/notifications?page=0&size=20`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `page`
-  - `size`
-- Response:
-  - Paginated notification list
-- Where to use:
-  - Notification page
-  - Notification drawer
-
-### API: Get Unread Notification Count
-
-- Status: `CREATED`
-- Purpose: Badge counter
-- Description: Returns unread count for current user
-- Endpoint: `GET /api/v1/notifications/unread-count`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-
-```json
-{
-  "success": true,
-  "data": 7
-}
-```
-
-- Where to use:
-  - Header bell icon
-  - Sidebar notification badge
-
-### API: Mark Notification as Read
-
-- Status: `CREATED`
-- Purpose: Update single notification status
-- Description: Marks one notification as read
-- Endpoint: `PATCH /api/v1/notifications/{id}/read`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Path Parameters:
-  - `id`: notification UUID
-- Response:
-  - Success envelope
-- Where to use:
-  - Notification list item action
-
-### API: Mark All Notifications as Read
-
-- Status: `CREATED`
-- Purpose: Bulk notification update
-- Description: Marks all notifications as read
-- Endpoint: `PATCH /api/v1/notifications/mark-all-read`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Success envelope
-- Where to use:
-  - Notification center toolbar
-
-## 4.5 WebSocket API
-
-### WebSocket: Real-Time Notifications
-
-- Status: `CREATED`
-- Purpose: Push real-time events to frontend
-- Description: STOMP WebSocket endpoint for live notifications
-- Endpoint: `/ws`
-- Protocol:
-  - SockJS / STOMP
-- Subscribe Topics:
-  - `/topic/user/{userId}/notifications`
-- Where to use:
-  - Notification badge refresh
-  - Live activity updates
-
-## 5. Missing APIs Required by Figma
-
-This section defines the APIs that need to be created to support the Figma screens.
-
-## 5.1 Master Data APIs
-
-These should be created first because many screens depend on them.
-
-### API: List Branches
-
-- Status: `PROPOSED`
-- Purpose: Populate branch selector
-- Description: Returns branch list for current tenant
-- Endpoint: `GET /api/branches`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
+### Backend Implementation Steps
+
+1. Validate optional `branchId`.
+2. Resolve date defaults.
+3. Load active branches for filter dropdown.
+4. Query `students`, `teachers`, and `users` counts.
+5. Query `operational_records` by module for:
+   - `FEE`
+   - `ATTENDANCE`
+   - `LEAD`
+   - `ACTIVITY`
+   - `CLASS_SESSION`
+   - `TEST`
+   - `FEEDBACK`
+6. Build overview metric cards.
+7. Build 12-month student growth series.
+8. Build fee collection monthly series.
+9. Build attendance donut summary.
+10. Build lead conversion funnel.
+11. Build recent activities list.
+12. Build footer metrics.
+13. Return one consolidated response to reduce frontend round trips.
+
+## 9. Branch Overview APIs
+
+These APIs are required because the super admin UI has branch switching and branch-level visibility.
+
+## 9.1 Branch Dropdown List
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/branches/options`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns lightweight branch list for header filters and forms.
+
+### Request Payload
+
+No payload.
+
+### Success Response
 
 ```json
 {
   "success": true,
   "data": [
     {
-      "id": "branch-uuid",
-      "name": "Main Branch",
-      "city": "Delhi",
-      "isActive": true
+      "id": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+      "name": "Main Branch"
     }
   ]
 }
 ```
 
-- Where to use:
-  - Header branch switcher
-  - Student form
-  - Teacher form
-  - Reports filters
+### Backend Implementation Steps
 
-### API: List Batches / Classes / Sections
+1. Query active, non-deleted branches.
+2. Sort by name.
+3. Return only `id` and `name`.
 
-- Status: `PROPOSED`
-- Purpose: Populate class and batch selectors
-- Description: Returns classes/batches by branch and academic year
-- Endpoint: `GET /api/batches`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `branchId`
-  - `academicYear`
-  - `standard`
-- Response:
-  - Batch list with standard, section, board, class teacher
-- Where to use:
-  - Timetable
-  - Attendance
-  - Tests
-  - Homework
-  - Students filters
+## 9.2 Branch Overview Summary
 
-### API: List Subjects
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/branches`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the branch overview screen with cards, table, and status data.
 
-- Status: `PROPOSED`
-- Purpose: Populate subject selectors
-- Description: Returns subjects by class/batch or institute
-- Endpoint: `GET /api/subjects`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-- Response:
-  - Subject list
-- Where to use:
-  - Timetable
-  - Syllabus
-  - Homework
-  - Tests
-  - Teacher weekly plan
+### Query Parameters
 
-## 5.2 Dashboard APIs
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `search` | string | No | Filters branch table by branch name, city, phone, or email. |
+| `isActive` | boolean | No | Filters active or inactive branches. |
+| `page` | integer | No | Current page for branch table. |
+| `size` | integer | No | Page size for branch table. |
 
-### API: Admin Dashboard Summary
-
-- Status: `PROPOSED`
-- Purpose: Populate admin dashboard KPI cards and widgets
-- Description: Returns counts, pending tasks, activity feed, attendance summary, fee summary, and smart insights
-- Endpoint: `GET /api/dashboard/admin`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `branchId` optional
-  - `date` optional
-- Response:
+### Success Response
 
 ```json
 {
   "success": true,
   "data": {
-    "kpis": {
-      "todayAdmissions": 12,
-      "feeCollectedToday": 45600,
-      "activeClasses": 28,
-      "teachersLive": 14,
-      "pendingFees": 136,
-      "newLeads": 23
+    "summary": {
+      "totalBranches": 2,
+      "activeBranches": 2,
+      "inactiveBranches": 0
     },
-    "pendingTasks": [],
-    "liveActivity": [],
-    "attendanceSnapshot": {
-      "totalStudents": 735,
-      "present": 612,
-      "absent": 75,
-      "late": 48
-    },
-    "feeSummary": {},
-    "testPerformance": {},
-    "syllabusProgress": {},
-    "stationeryStatus": {},
-    "smartInsights": []
+    "content": [
+      {
+        "id": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "name": "Main Branch",
+        "address": "Baner, Pune",
+        "city": "Pune",
+        "phone": "9876543210",
+        "email": "main@school.com",
+        "isActive": true,
+        "totalStudents": 1200,
+        "totalTeachers": 45,
+        "totalAdmins": 5,
+        "createdAt": "2026-05-09T10:00:00",
+        "updatedAt": "2026-05-09T10:00:00"
+      }
+    ],
+    "page": {
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 2,
+      "totalPages": 1,
+      "first": true,
+      "last": true
+    }
   }
 }
 ```
 
-- Where to use:
-  - Admin dashboard home
+### Backend Implementation Steps
 
-### API: Teacher Dashboard Summary
+1. Accept filter and pagination inputs.
+2. Query `branches`.
+3. Join or aggregate counts from `students`, `teachers`, and `users`.
+4. Build summary cards.
+5. Build paginated branch table.
+6. Return one page response.
 
-- Status: `PROPOSED`
-- Purpose: Populate teacher dashboard
-- Description: Returns next class, today schedule, recent activity, pending work
-- Endpoint: `GET /api/dashboard/teacher`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Teacher dashboard summary
-- Where to use:
-  - Teacher home screen
+## 9.3 Branch Detail
 
-### API: Student Dashboard Summary
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/branches/{branchId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns a single branch with its counts and profile data.
 
-- Status: `PROPOSED`
-- Purpose: Populate student dashboard
-- Description: Returns today’s classes, assignments, homework, tests, announcements, progress
-- Endpoint: `GET /api/dashboard/student`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Student dashboard summary
-- Where to use:
-  - Student home screen
+## 9.4 Create Branch
 
-## 5.3 Leads and Admissions APIs
+- Status: `IMPLEMENTED`
+- Endpoint: `POST /api/super-admin/branches`
+- Auth: `SUPER_ADMIN`
+- Purpose: Creates a new branch.
 
-### API: Create Inquiry Lead
-
-- Status: `PROPOSED`
-- Purpose: Capture admission lead
-- Description: Creates inquiry record before admission
-- Endpoint: `POST /api/leads`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+### Request Payload
 
 ```json
 {
-  "studentName": "Aarav Singh",
-  "dateOfBirth": "2012-03-14",
-  "gender": "Male",
-  "currentStandard": "8th",
-  "schoolName": "ABC School",
-  "board": "CBSE",
-  "subjectsInterested": ["Math", "Science"],
-  "preferredBranchId": "branch-uuid",
-  "parentName": "Rahul Singh",
-  "relationship": "Father",
+  "name": "Baner Branch",
+  "address": "Baner Road, Pune",
+  "city": "Pune",
+  "phone": "9876543210",
+  "email": "baner@school.com"
+}
+```
+
+## 9.5 Update Branch
+
+- Status: `IMPLEMENTED`
+- Endpoint: `PUT /api/super-admin/branches/{branchId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates branch profile data.
+
+### Request Payload
+
+Same shape as create branch.
+
+## 9.6 Change Branch Status
+
+- Status: `IMPLEMENTED`
+- Endpoint: `PATCH /api/super-admin/branches/{branchId}/status`
+- Auth: `SUPER_ADMIN`
+- Purpose: Activates or deactivates a branch.
+
+### Request Payload
+
+```json
+{
+  "isActive": false,
+  "reason": "Temporarily closed"
+}
+```
+
+## 9.7 Delete Branch
+
+- Status: `IMPLEMENTED`
+- Endpoint: `DELETE /api/super-admin/branches/{branchId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Soft deletes a branch when it has no linked admins, teachers, or students.
+
+## 10. Admin Management APIs
+
+## 10.1 Admin List
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/admins`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the admin management screen table and top cards.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `branchId` | UUID | No | Filters admins for a selected branch. |
+| `isActive` | boolean | No | Filters active or inactive admins. |
+| `search` | string | No | Searches by full name, email, or phone. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "totalAdmins": 12,
+      "activeAdmins": 10,
+      "inactiveAdmins": 2,
+      "allBranchAdmins": 7
+    },
+    "content": [
+      {
+        "id": "f5f4862c-7f49-49fe-ae54-078fd0bbf7e8",
+        "userId": "2c421b28-4f72-41a5-8d87-c6f1d215db76",
+        "fullName": "Rahul Sharma",
+        "email": "rahul.sharma@institute.com",
+        "phone": "9876543210",
+        "loginId": "ADM00001",
+        "dateOfBirth": "1991-04-10",
+        "gender": "MALE",
+        "profilePhotoUrl": "https://cdn.example.com/admins/rahul.jpg",
+        "role": "Admin",
+        "joiningDate": "2023-01-10",
+        "accessLevel": "FULL",
+        "address": "Pune",
+        "allBranchesAccess": false,
+        "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "branchName": "Main Branch",
+        "isActive": true,
+        "lastLoginAt": "2026-05-08T10:30:00",
+        "createdAt": "2026-05-08T09:00:00",
+        "updatedAt": "2026-05-08T09:00:00"
+      }
+    ],
+    "page": {
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 12,
+      "totalPages": 2,
+      "first": true,
+      "last": false
+    }
+  }
+}
+```
+
+### Backend Implementation Steps
+
+1. Require super admin access.
+2. Accept optional `search`, `isActive`, `branchId`, `page`, and `size`.
+3. Query `admin_profiles` joined with `users`.
+4. Apply branch rule:
+   - include all-branches admins
+   - include branch-mapped admins when `branchId` matches
+5. Build summary cards from the filtered scope.
+6. Return admin list plus pagination metadata.
+
+## 10.2 Create Admin
+
+- Status: `IMPLEMENTED`
+- Endpoint: `POST /api/super-admin/admins`
+- Auth: `SUPER_ADMIN`
+- Purpose: Creates an admin user from the `Add New Admin` screen.
+
+### Request Payload
+
+```json
+{
+  "fullName": "Branch Admin",
+  "email": "branch.admin@school.com",
+  "phone": "9876543210",
+  "dateOfBirth": "1992-02-10",
+  "gender": "MALE",
+  "profilePhotoUrl": "https://cdn.example.com/admin.jpg",
+  "loginId": "ADM00013",
+  "password": "Password@123",
+  "confirmPassword": "Password@123",
+  "role": "ADMIN",
+  "joiningDate": "2026-05-08",
+  "accessLevel": "FULL",
+  "branchId": null,
+  "address": "Baner, Pune",
+  "allBranchesAccess": true
+}
+```
+
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `fullName` | string | Yes | Display name shown in list, header, and audit logs. |
+| `email` | string | Yes | Primary admin login email and communication address. |
+| `phone` | string | Yes | Contact number shown in table and for future recovery. |
+| `dateOfBirth` | date | No | Personal profile field shown in create form. |
+| `gender` | enum | No | Profile metadata shown in create form. |
+| `profilePhotoUrl` | string | No | Stores uploaded image reference after media upload flow is added. |
+| `loginId` | string | Yes | Business-friendly admin identifier from UI design. |
+| `password` | string | Yes | Initial admin password. |
+| `confirmPassword` | string | Yes | Prevents password mismatch during creation. |
+| `role` | string | Yes | Keeps payload explicit and future-safe if more admin subtypes are added. |
+| `joiningDate` | date | Yes | Used in admin profile and table display. |
+| `accessLevel` | string | Yes | Future permission template selector for admin privilege depth. |
+| `branchId` | UUID | No | Links admin to a specific branch when the admin is not global. |
+| `address` | string | No | Profile and contact detail for the created admin. |
+| `allBranchesAccess` | boolean | No | Controls whether the admin can operate across all branches or one branch only. |
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Admin created successfully",
+  "data": {
+    "id": "f5f4862c-7f49-49fe-ae54-078fd0bbf7e8",
+    "userId": "2c421b28-4f72-41a5-8d87-c6f1d215db76",
+    "fullName": "Branch Admin",
+    "email": "branch.admin@school.com",
+    "loginId": "ADM00013",
+    "role": "ADMIN",
+    "joiningDate": "2026-05-08",
+    "accessLevel": "FULL",
+    "allBranchesAccess": true,
+    "branchId": null,
+    "branchName": "All Branches",
+    "isActive": true
+  }
+}
+```
+
+### Backend Implementation Steps
+
+1. Validate required form fields.
+2. Validate branch existence.
+3. Ensure email uniqueness.
+4. Ensure login ID uniqueness.
+5. Ensure password confirmation.
+6. Load role `ADMIN`.
+7. Create `users` row.
+8. Assign branch only if admin is branch-scoped.
+9. Create `admin_profiles` row.
+10. Write activity record in `operational_records`.
+11. Return created admin response.
+
+## 10.3 Admin Detail
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/admins/{adminId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns details for view/edit drawer or page.
+
+### Success Response
+
+The response shape matches `AdminResponse` from the list and returns the full admin profile.
+
+## 10.4 Update Admin
+
+- Status: `IMPLEMENTED`
+- Endpoint: `PUT /api/super-admin/admins/{adminId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates editable admin profile fields.
+
+### Request Payload
+
+Same shape as the create admin payload, except `password` and `confirmPassword` are optional during update.
+
+### Update Rules
+
+- if both password fields are omitted, password remains unchanged
+- if one password field is provided, both must match
+- if `allBranchesAccess=false`, `branchId` is required
+- if `allBranchesAccess=true`, the backend clears the branch mapping
+
+### Backend Implementation Steps
+
+1. Load admin profile and linked user.
+2. Validate role remains `ADMIN`.
+3. Validate unique email and login ID excluding current user.
+4. Apply optional password update and revoke sessions if password changes.
+5. Update user and `admin_profiles`.
+6. Write update activity record.
+7. Return updated admin response.
+
+## 10.5 Change Admin Status
+
+- Status: `IMPLEMENTED`
+- Endpoint: `PATCH /api/super-admin/admins/{adminId}/status`
+- Auth: `SUPER_ADMIN`
+- Purpose: Activates or deactivates an admin.
+
+### Request Payload
+
+```json
+{
+  "isActive": false,
+  "reason": "Left organization"
+}
+```
+
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `isActive` | boolean | Yes | Target account state for login control. |
+| `reason` | string | No | Optional audit note for admin state change. |
+
+### Backend Implementation Steps
+
+1. Load admin user.
+2. Verify user has role `ADMIN`.
+3. Update `is_active`.
+4. If disabling, revoke refresh tokens.
+5. Write activity record.
+6. Return updated state.
+
+## 10.6 Delete Admin
+
+- Status: `IMPLEMENTED`
+- Endpoint: `DELETE /api/super-admin/admins/{adminId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Soft deletes an admin account without hard-deleting rows.
+
+### Request Payload
+
+No payload.
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Admin deleted successfully",
+  "data": null
+}
+```
+
+### Backend Implementation Steps
+
+1. Load admin profile and linked user.
+2. Soft delete the admin profile.
+3. Soft delete and deactivate the linked user.
+4. Revoke all refresh tokens for that admin.
+5. Write delete activity record.
+6. Return success envelope.
+
+## 11. Teacher Management APIs
+
+## 11.1 Teacher List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/teachers`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills teacher management table and cards.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `branchId` | UUID | No | Filters teachers by branch. |
+| `subject` | string | No | Filters by primary subject. |
+| `status` | enum | No | Filters active or inactive teacher accounts. |
+| `search` | string | No | Searches by name, email, or phone. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+## 11.2 Create Teacher
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/teachers`
+- Auth: `SUPER_ADMIN`
+- Purpose: Creates a teacher account and linked teacher profile.
+
+### Request Payload
+
+```json
+{
+  "fullName": "Neha Patil",
+  "email": "neha.patil@institute.com",
+  "phone": "9876543210",
+  "dateOfBirth": "1990-04-15",
+  "gender": "FEMALE",
+  "profilePhotoUrl": "https://cdn.example.com/teacher.jpg",
+  "qualification": "M.Sc. Mathematics",
+  "experienceYears": 6,
+  "subjects": ["Mathematics", "Physics"],
+  "specialization": "Algebra",
+  "joiningDate": "2026-05-08",
+  "employmentType": "FULL_TIME",
+  "salaryType": "MONTHLY",
+  "hourlyRate": 600,
+  "loginId": "TEA00087",
+  "password": "Password@123",
+  "confirmPassword": "Password@123",
+  "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+  "address": "Pune"
+}
+```
+
+### Payload Field Purpose
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `fullName` | string | Yes | Teacher display name used in lists and assignment flows. |
+| `email` | string | Yes | Login email and official contact address. |
+| `phone` | string | Yes | Contact field for management views. |
+| `dateOfBirth` | date | No | Personal profile field shown in UI. |
+| `gender` | enum | No | Personal profile field shown in UI. |
+| `profilePhotoUrl` | string | No | Teacher avatar for table and profile views. |
+| `qualification` | string | Yes | Academic qualification shown in teacher records. |
+| `experienceYears` | integer | No | Used in teacher listing and profile overview. |
+| `subjects` | array[string] | Yes | Indicates teaching subjects and drives subject filters later. |
+| `specialization` | string | No | Optional academic specialization detail. |
+| `joiningDate` | date | Yes | Used for teacher profile and payout timelines. |
+| `employmentType` | string | Yes | Distinguishes full-time, part-time, or contractual teacher. |
+| `salaryType` | string | Yes | Needed because payout screens may support monthly or hourly logic. |
+| `hourlyRate` | number | Conditional | Required for payout tracking when teacher is hourly-based. |
+| `loginId` | string | Yes | Business-friendly teacher ID for system tracking. |
+| `password` | string | Yes | Initial teacher credential. |
+| `confirmPassword` | string | Yes | Prevents password mismatch at creation time. |
+| `branchId` | UUID | Yes | Branch mapping for teacher scope. |
+| `address` | string | No | Contact detail shown in teacher profile. |
+
+### Backend Implementation Steps
+
+1. Validate branch and unique identifiers.
+2. Create `users` row with role `TEACHER`.
+3. Create `teachers` row linked to `user_id`.
+4. Store branch link and hourly rate.
+5. Persist subjects in a future teacher-subject mapping table.
+6. Return teacher summary payload.
+
+## 11.3 Teacher Detail
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/teachers/{teacherId}`
+
+## 11.4 Update Teacher
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/teachers/{teacherId}`
+
+## 11.5 Change Teacher Status
+
+- Status: `PLANNED`
+- Endpoint: `PATCH /api/super-admin/teachers/{teacherId}/status`
+
+## 12. Student Management APIs
+
+## 12.1 Student List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/students`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills student management table and top cards.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `branchId` | UUID | No | Filters by branch. |
+| `standard` | string | No | Filters by class or standard. |
+| `batch` | string | No | Filters by batch or section once mapped. |
+| `status` | enum | No | Filters active or inactive students. |
+| `search` | string | No | Searches by student name, parent name, mobile, or student ID. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+## 12.2 Create Student
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/students`
+- Auth: `SUPER_ADMIN`
+- Purpose: Creates student record and future student login.
+
+### Request Payload
+
+```json
+{
+  "fullName": "Aarav Sharma",
+  "studentId": "STU240001",
+  "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+  "standard": "9th",
+  "batch": "9th CBSE A",
+  "gender": "MALE",
+  "dateOfBirth": "2011-03-27",
   "mobile": "9876543210",
-  "alternateMobile": "9876543211",
-  "email": "parent@example.com",
-  "occupation": "Business",
-  "address": "Sample address",
-  "source": "Parent Referral",
-  "subSource": "Existing Parent",
-  "classInterestedIn": "8th",
-  "preferredBatchTiming": "Morning",
-  "followUpDate": "2026-04-28",
-  "remarks": "Interested in math and science",
-  "requirements": "Need weekday batch"
+  "parentName": "Rajesh Sharma",
+  "parentPhone": "9876543211",
+  "email": "aarav@example.com",
+  "address": "Pune",
+  "schoolName": "Greenfield Public School",
+  "board": "CBSE",
+  "admissionDate": "2026-05-08",
+  "loginId": "STU240001",
+  "password": "Password@123",
+  "confirmPassword": "Password@123",
+  "profilePhotoUrl": "https://cdn.example.com/student.jpg"
 }
 ```
 
-- Response:
-  - Lead object with status `NEW`
-- Where to use:
-  - Add new inquiry page
+### Payload Field Purpose
 
-### API: List Leads
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `fullName` | string | Yes | Student display name shown throughout the system. |
+| `studentId` | string | Yes | Business-visible student identifier shown in list and reports. |
+| `branchId` | UUID | Yes | Student branch mapping for all branch filters. |
+| `standard` | string | Yes | Class or grade used in filters and academic grouping. |
+| `batch` | string | Yes | Section or batch label shown in table. |
+| `gender` | enum | No | Demographic field for profile and analytics. |
+| `dateOfBirth` | date | No | Personal profile field. |
+| `mobile` | string | Yes | Student or primary contact number. |
+| `parentName` | string | Yes | Guardian name shown in list and communication flows. |
+| `parentPhone` | string | Yes | Guardian contact for outreach and future parent portal. |
+| `email` | string | No | Optional student or guardian email contact. |
+| `address` | string | No | Contact detail shown in detail views. |
+| `schoolName` | string | No | Needed because admission designs capture prior or current school. |
+| `board` | string | Yes | Academic board, aligned with schema check values. |
+| `admissionDate` | date | Yes | Needed for reports, admissions, and audit timeline. |
+| `loginId` | string | Yes | Future student login identity. |
+| `password` | string | Yes | Initial student credential. |
+| `confirmPassword` | string | Yes | Prevents password mismatch. |
+| `profilePhotoUrl` | string | No | Avatar shown in student list. |
 
-- Status: `PROPOSED`
-- Purpose: Show inquiry pipeline
-- Description: Returns leads with filters and status counts
-- Endpoint: `GET /api/leads`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `status`
-  - `source`
-  - `followUpBy`
-  - `classInterestedIn`
-  - `search`
-  - `page`
-  - `size`
-- Response:
-  - Paginated leads list plus summary counts
-- Where to use:
-  - Leads page
-  - Admissions pipeline
+### Backend Implementation Steps
 
-### API: Get Lead Details
+1. Validate branch and board value.
+2. Create `users` account with role `STUDENT`.
+3. Create `students` row linked by `user_id`.
+4. Mark active and current admission state.
+5. Return student summary response.
 
-- Status: `PROPOSED`
-- Purpose: Open inquiry side panel
-- Description: Returns lead details, follow-up history, notes, and source information
-- Endpoint: `GET /api/leads/{leadId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Lead detail object
-- Where to use:
-  - Lead details drawer
-  - Lead summary panel
+## 12.3 Student Detail
 
-### API: Update Lead
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/students/{studentId}`
 
-- Status: `PROPOSED`
-- Purpose: Edit lead details
-- Description: Updates inquiry information and remarks
-- Endpoint: `PUT /api/leads/{leadId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-  - Same as create lead with editable fields
-- Response:
-  - Updated lead
-- Where to use:
-  - Edit lead form
+## 12.4 Update Student
 
-### API: Convert Lead to Admission
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/students/{studentId}`
 
-- Status: `PROPOSED`
-- Purpose: Convert inquiry to confirmed student
-- Description: Creates admission/student from lead
-- Endpoint: `POST /api/leads/{leadId}/convert-to-admission`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 12.5 Change Student Status
+
+- Status: `PLANNED`
+- Endpoint: `PATCH /api/super-admin/students/{studentId}/status`
+
+## 12.6 Bulk Import Students
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/students/import`
+- Auth: `SUPER_ADMIN`
+- Purpose: Supports `Import Students` action visible in design.
+
+## 13. Leads and Admissions APIs
+
+## 13.1 Lead List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/leads`
+- Auth: `SUPER_ADMIN`
+- Purpose: Lists inquiry leads for the lead management screen.
+
+## 13.2 Create Lead
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/leads`
+- Auth: `SUPER_ADMIN`
+- Purpose: Saves the long lead inquiry form shown in design.
+
+### Request Payload
+
+The payload should be split into:
+- student information
+- parent or guardian information
+- lead source and inquiry details
+- counselor recommendation
+- documents
+
+### Required Core Fields
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `studentName` | string | Yes | Lead identity for inquiry tracking. |
+| `gender` | enum | No | Student demographic detail from form. |
+| `dateOfBirth` | date | No | Student profile field from form. |
+| `classInterestedIn` | string | Yes | Needed to route lead to the correct academic offering. |
+| `board` | string | Yes | Needed because leads are board-sensitive in design. |
+| `medium` | string | Yes | Academic medium filter from form. |
+| `stream` | string | No | Needed for higher-class admission routing. |
+| `address` | string | No | Contact and locality context. |
+| `mobileNumber` | string | Yes | Primary lead contact number. |
+| `alternateMobileNumber` | string | No | Backup communication channel. |
+| `email` | string | No | Email communication for reminders. |
+| `fatherName` | string | No | Parent identity. |
+| `motherName` | string | No | Parent identity. |
+| `relation` | string | No | Guardian relationship to the student. |
+| `leadSource` | string | Yes | Funnel tracking for analytics and conversion. |
+| `referredBy` | string | No | Source attribution when referral exists. |
+| `preferredBranchId` | UUID | Yes | Branch routing for admission ownership. |
+| `inquiryFor` | string | Yes | Captures whether inquiry is for admission, counseling, or another case. |
+| `expectedAdmissionYear` | string | Yes | Academic cycle target for follow-up. |
+| `preferredFollowupDate` | date | No | Follow-up scheduling aid. |
+| `preferredContactTime` | string | No | Contact timing preference. |
+| `preferredContactModes` | array[string] | No | Call, WhatsApp, email, or SMS preference. |
+| `counselorRecommended` | string | No | Counselor assignment detail. |
+| `subjectsSuggested` | array[string] | No | Counseling outcome detail from form. |
+| `batchSuggested` | string | No | Recommended batch or section. |
+| `admissionLikelihood` | string | No | Funnel confidence used in counseling. |
+| `remarks` | string | No | Free-text counselor or staff notes. |
+
+### Backend Implementation Steps
+
+1. Validate branch and academic fields.
+2. Save lead master row.
+3. Save counselor metadata and follow-up preferences.
+4. Store source for funnel analytics.
+5. Save uploaded file references.
+6. Write operational record with module `LEAD`.
+
+## 13.3 Lead Detail
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/leads/{leadId}`
+
+## 13.4 Convert Lead to Admission
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/leads/{leadId}/convert-to-admission`
+- Auth: `SUPER_ADMIN`
+- Purpose: Starts admission record using an approved lead.
+
+## 13.5 Admission List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/admissions`
+- Auth: `SUPER_ADMIN`
+- Purpose: Lists admissions records and filters.
+
+## 13.6 Create Admission
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/admissions`
+- Auth: `SUPER_ADMIN`
+- Purpose: Saves admission form shown in design.
+
+### Request Payload
+
+The admission payload should reuse student and guardian fields from lead capture, plus:
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `academicSession` | string | Yes | Admission belongs to one academic year. |
+| `admissionDate` | date | Yes | Required for admission timeline and reports. |
+| `admissionNumber` | string | No | Auto-generated or manually preserved admission identifier. |
+| `branchId` | UUID | Yes | Branch mapping for all downstream data. |
+| `classOrStandard` | string | Yes | Required academic placement. |
+| `board` | string | Yes | Board-specific admission grouping. |
+| `medium` | string | Yes | Medium-specific academic placement. |
+| `stream` | string | No | Needed where stream applies. |
+| `schoolLastAttended` | string | No | Previous school information from form. |
+| `lastClassPassed` | string | No | Admission eligibility context. |
+| `lastBoard` | string | No | Previous academic board. |
+| `passingYear` | integer | No | Prior academic timeline. |
+| `subjects` | array[string] | Yes | Selected study subjects from form. |
+| `transportRequired` | boolean | No | Operational requirement captured in form. |
+| `hostelRequired` | boolean | No | Operational requirement captured in form. |
+| `previousTransferCertificateUrl` | string | No | Admission document reference. |
+
+### Backend Implementation Steps
+
+1. Validate academic session and branch.
+2. Create or link student record.
+3. Mark `is_admission_final = true`.
+4. Write admission operational record.
+5. Return created admission summary.
+
+## 14. Analytics APIs
+
+## 14.1 Analytics Overview
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/analytics`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills analytics screen with cards, tabs, and charts.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `tab` | enum | No | Controls current analytics tab such as overview, students, teachers, attendance, academics, finance, admissions, performance, or feedback. |
+| `branchId` | UUID | No | Optional branch filter. |
+| `fromDate` | date | No | Lower reporting bound. |
+| `toDate` | date | No | Upper reporting bound. |
+
+### Backend Implementation Steps
+
+1. Reuse dashboard aggregations where possible.
+2. Add tab-specific metrics only for visible design cards and charts.
+3. Return data sectioned by active tab.
+
+## 15. Reports APIs
+
+## 15.1 Reports Summary
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/reports/summary`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills report dashboard cards and category tiles.
+
+## 15.2 Reports List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/reports`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns report rows for the reports table.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `category` | string | No | Filters student, teacher, attendance, academic, admission, or exam reports. |
+| `reportType` | string | No | Narrows to specific report type. |
+| `fromDate` | date | No | Start date for report filter. |
+| `toDate` | date | No | End date for report filter. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+## 15.3 Export Report
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/reports/export`
+- Auth: `SUPER_ADMIN`
+- Purpose: Generates export file for selected report.
+
+### Request Payload
 
 ```json
 {
-  "branchId": "branch-uuid",
-  "batchId": "batch-uuid",
-  "feeStructureId": "fee-structure-uuid",
-  "admissionDate": "2026-04-25"
+  "reportType": "STUDENT_ATTENDANCE_REPORT",
+  "format": "PDF",
+  "branchId": null,
+  "fromDate": "2026-05-01",
+  "toDate": "2026-05-31"
 }
 ```
 
-- Response:
-  - Student/admission summary
-- Where to use:
-  - Lead details panel
-  - Admissions conversion action
+### Payload Field Purpose
 
-### API: Mark Lead as Not Interested / Lost
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `reportType` | string | Yes | Identifies which dataset should be exported. |
+| `format` | string | Yes | Specifies output format such as PDF or Excel. |
+| `branchId` | UUID | No | Optional branch-scope export. |
+| `fromDate` | date | No | Lower date filter for report generation. |
+| `toDate` | date | No | Upper date filter for report generation. |
 
-- Status: `PROPOSED`
-- Purpose: Close lead pipeline
-- Description: Marks lead as lost or not interested with reason
-- Endpoint: `POST /api/leads/{leadId}/close`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 16. Feedback APIs
+
+## 16.1 Feedback Summary
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/feedback/summary`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills feedback cards and charts.
+
+## 16.2 Feedback List
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/feedback`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns feedback table with filters visible in design.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `feedbackFrom` | string | No | Filters by source audience such as student, teacher, or parent. |
+| `feedbackFor` | string | No | Filters target team or person. |
+| `feedbackType` | string | No | Filters category such as teaching, infrastructure, or administration. |
+| `rating` | integer | No | Filters star rating. |
+| `fromDate` | date | No | Lower date bound. |
+| `toDate` | date | No | Upper date bound. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+## 17. Attendance Overview APIs
+
+## 17.1 Attendance Overview
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/attendance/overview`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the attendance overview screen.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `classOrGrade` | string | No | Filters attendance by class. |
+| `section` | string | No | Filters by section. |
+| `branchId` | UUID | No | Optional branch filter. |
+| `fromDate` | date | No | Start date filter. |
+| `toDate` | date | No | End date filter. |
+
+### Backend Implementation Steps
+
+1. Query attendance operational records.
+2. Aggregate student cards.
+3. Compute present, absent, late, and percentage metrics.
+4. Return class-wise breakdown and day-of-week table.
+
+## 18. Test and Performance APIs
+
+## 18.1 Test Performance Summary
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/tests/performance`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills test and performance dashboard page.
+
+## 18.2 Create Test
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/tests`
+- Auth: `SUPER_ADMIN`
+- Purpose: Saves the `Add New Test` form.
+
+### Request Payload
 
 ```json
 {
-  "status": "NOT_INTERESTED",
-  "reason": "Joined another institute"
+  "title": "Science Weekly Test",
+  "testType": "MCQ_TEST",
+  "subject": "Science",
+  "classOrGrade": "8th",
+  "totalMarks": 100,
+  "passingMarks": 40,
+  "durationMinutes": 60,
+  "negativeMarkingPolicy": "NONE",
+  "instructions": "Answer all questions.",
+  "startDateTime": "2026-05-16T10:00:00",
+  "endDateTime": "2026-05-16T11:00:00",
+  "resultDeclaration": "AFTER_TEST_END",
+  "shuffleQuestions": true
 }
 ```
 
-- Response:
-  - Success envelope
-- Where to use:
-  - Lead detail action buttons
+### Payload Field Purpose
 
-### API: Create Follow-Up
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `title` | string | Yes | Test title shown in lists and reports. |
+| `testType` | string | Yes | Supports the test type filter in design. |
+| `subject` | string | Yes | Links the test to subject analytics. |
+| `classOrGrade` | string | Yes | Controls student audience. |
+| `totalMarks` | integer | Yes | Needed for score calculations. |
+| `passingMarks` | integer | Yes | Needed for pass percentage analytics. |
+| `durationMinutes` | integer | Yes | Required for scheduling and exam timing. |
+| `negativeMarkingPolicy` | string | Yes | Mirrors design option for negative marking. |
+| `instructions` | string | No | Student-facing test instructions. |
+| `startDateTime` | datetime | Yes | Test availability start. |
+| `endDateTime` | datetime | Yes | Test availability end. |
+| `resultDeclaration` | string | Yes | Controls when results become visible. |
+| `shuffleQuestions` | boolean | Yes | Mirrors exam configuration from UI. |
 
-- Status: `PROPOSED`
-- Purpose: Schedule inquiry follow-up
-- Description: Adds follow-up task for lead
-- Endpoint: `POST /api/leads/{leadId}/follow-ups`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 18.3 Add Test Questions
 
-```json
-{
-  "followUpDate": "2026-04-29",
-  "followUpTime": "10:00:00",
-  "mode": "PHONE_CALL",
-  "priority": "MEDIUM",
-  "assignedToUserId": "user-uuid",
-  "notes": "Discuss batch timings"
-}
-```
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/tests/{testId}/questions`
+- Auth: `SUPER_ADMIN`
+- Purpose: Saves questions from the `Add Questions` screen.
 
-- Response:
-  - Follow-up object
-- Where to use:
-  - Follow-up form
-  - Lead management
-
-### API: List Follow-Ups
-
-- Status: `PROPOSED`
-- Purpose: Follow-up tracking page
-- Description: Returns follow-up list with completed and pending counts
-- Endpoint: `GET /api/follow-ups`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `status`
-  - `assignedTo`
-  - `dateFrom`
-  - `dateTo`
-  - `page`
-  - `size`
-- Response:
-  - Paginated follow-up list
-- Where to use:
-  - Follow-up page
-
-## 5.4 Student Management APIs
-
-### API: Update Student
-
-- Status: `PROPOSED`
-- Purpose: Edit student profile
-- Description: Updates student details shown in student drawer/profile
-- Endpoint: `PUT /api/students/{studentId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-  - Student profile fields
-- Response:
-  - Updated student
-- Where to use:
-  - Student details drawer
-  - Edit student profile
-
-### API: Student Full Profile
-
-- Status: `PROPOSED`
-- Purpose: Fetch complete student tabs
-- Description: Returns overview, academic info, attendance summary, fee summary, test summary
-- Endpoint: `GET /api/students/{studentId}/profile`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Rich student profile object
-- Where to use:
-  - Student side panel tabs
-  - Student profile page
-
-### API: Deactivate Student Admission
-
-- Status: `PROPOSED`
-- Purpose: Archive student / passed out / left institute
-- Description: Adds business state beyond simple login activation
-- Endpoint: `POST /api/students/{studentId}/status`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+### Request Payload
 
 ```json
 {
-  "status": "PASSED_OUT",
-  "reason": "Academic year completed"
-}
-```
-
-- Response:
-  - Updated status object
-- Where to use:
-  - Student admin actions
-
-## 5.5 Teacher Management APIs
-
-### API: Update Teacher
-
-- Status: `PROPOSED`
-- Purpose: Edit teacher profile
-- Description: Updates teacher information
-- Endpoint: `PUT /api/teachers/{teacherId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-  - Teacher editable fields
-- Response:
-  - Updated teacher
-- Where to use:
-  - Teacher management
-  - Teacher profile drawer
-
-### API: Teacher Full Profile
-
-- Status: `PROPOSED`
-- Purpose: Show teacher profile details
-- Description: Returns class assignments, subject list, timetable, attendance, statistics
-- Endpoint: `GET /api/teachers/{teacherId}/profile`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Teacher profile object
-- Where to use:
-  - Teacher profile page
-
-### API: Assign Subjects to Teacher
-
-- Status: `PROPOSED`
-- Purpose: Assign academic responsibility
-- Description: Maps teacher to subjects and classes
-- Endpoint: `POST /api/teachers/{teacherId}/subjects`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "assignments": [
-    {
-      "batchId": "batch-uuid",
-      "subjectId": "subject-uuid"
-    }
-  ]
-}
-```
-
-- Response:
-  - Success envelope
-- Where to use:
-  - Teacher setup
-  - Timetable dependency
-
-## 5.6 Attendance APIs
-
-### API: Mark Student Attendance
-
-- Status: `PROPOSED`
-- Purpose: Save student attendance
-- Description: Saves attendance for class/date with remarks
-- Endpoint: `POST /api/attendance/students`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "date": "2026-04-25",
-  "batchId": "batch-uuid",
-  "subjectId": "subject-uuid",
-  "entries": [
-    {
-      "studentId": "student-uuid",
-      "status": "PRESENT",
-      "remarks": "On time"
-    }
-  ]
-}
-```
-
-- Response:
-  - Attendance save summary
-- Where to use:
-  - Mark student attendance page
-
-### API: Mark Teacher Attendance
-
-- Status: `PROPOSED`
-- Purpose: Save teacher attendance
-- Description: Records teacher presence, half day, absent, and remarks
-- Endpoint: `POST /api/attendance/teachers`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "date": "2026-04-25",
-  "entries": [
-    {
-      "teacherId": "teacher-uuid",
-      "status": "HALF_DAY",
-      "remarks": "Medical appointment"
-    }
-  ]
-}
-```
-
-- Response:
-  - Attendance save summary
-- Where to use:
-  - Mark teacher attendance page
-
-### API: Attendance Dashboard Summary
-
-- Status: `PROPOSED`
-- Purpose: KPI cards and charts
-- Description: Returns student and teacher attendance summaries
-- Endpoint: `GET /api/attendance/summary`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `date`
-  - `batchId`
-  - `branchId`
-- Response:
-  - Attendance aggregate object
-- Where to use:
-  - Attendance page
-  - Dashboard widgets
-
-### API: Student Attendance Report
-
-- Status: `PROPOSED`
-- Purpose: Student monthly/term attendance analytics
-- Description: Returns attendance trend and subject-wise attendance
-- Endpoint: `GET /api/students/{studentId}/attendance`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Attendance trend object
-- Where to use:
-  - Student portal attendance page
-  - Student admin drawer
-
-## 5.7 Timetable APIs
-
-### API: Create Timetable
-
-- Status: `PROPOSED`
-- Purpose: Create weekly timetable
-- Description: Saves timetable structure for batch/section
-- Endpoint: `POST /api/timetables`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "batchId": "batch-uuid",
-  "section": "A",
-  "effectiveFrom": "2026-05-01",
-  "viewType": "WEEKLY",
-  "periods": [
-    {
-      "dayOfWeek": "MONDAY",
-      "startTime": "08:30:00",
-      "endTime": "09:15:00",
-      "subjectId": "subject-uuid",
-      "teacherId": "teacher-uuid",
-      "roomNo": "204"
-    }
-  ]
-}
-```
-
-- Response:
-  - Timetable object
-- Where to use:
-  - Admin timetable creation page
-
-### API: Get Timetable
-
-- Status: `PROPOSED`
-- Purpose: Fetch timetable by batch/teacher/student
-- Description: Returns weekly timetable
-- Endpoint: `GET /api/timetables`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-  - `teacherId`
-  - `studentId`
-  - `weekStart`
-- Response:
-  - Structured timetable object
-- Where to use:
-  - Admin timetable page
-  - Teacher my schedule
-  - Student my schedule
-
-### API: Update Timetable
-
-- Status: `PROPOSED`
-- Purpose: Edit timetable
-- Description: Updates timetable entries
-- Endpoint: `PUT /api/timetables/{timetableId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-  - Timetable update object
-- Response:
-  - Updated timetable
-- Where to use:
-  - Edit timetable modal
-
-## 5.8 Fees APIs
-
-### API: Fees Dashboard Summary
-
-- Status: `PROPOSED`
-- Purpose: Fees cards and collection summary
-- Description: Returns monthly totals, pending, overdue, collected
-- Endpoint: `GET /api/fees/summary`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `month`
-  - `batchId`
-  - `feeType`
-  - `paymentStatus`
-- Response:
-  - Fee dashboard object
-- Where to use:
-  - Fees page
-
-### API: List Student Fees
-
-- Status: `PROPOSED`
-- Purpose: Show fee table
-- Description: Returns fee records per student
-- Endpoint: `GET /api/fees`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `month`
-  - `batchId`
-  - `status`
-  - `studentId`
-  - `page`
-  - `size`
-- Response:
-  - Paginated fee list
-- Where to use:
-  - Fees list
-  - Due fee list
-
-### API: Collect Fees
-
-- Status: `PROPOSED`
-- Purpose: Record payment
-- Description: Saves one or multiple fee component payments and receipt data
-- Endpoint: `POST /api/fees/collections`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "studentId": "student-uuid",
-  "paidDate": "2026-04-25",
-  "paymentMode": "CASH",
-  "referenceNo": "RCPT-1001",
-  "components": [
-    {
-      "feeType": "TUITION",
-      "amount": 4000,
-      "discount": 0,
-      "fine": 0
-    }
+  "questionType": "MCQ",
+  "questionText": "What is the capital of France?",
+  "options": [
+    {"label": "A", "text": "London"},
+    {"label": "B", "text": "Paris"},
+    {"label": "C", "text": "Rome"},
+    {"label": "D", "text": "Berlin"}
   ],
-  "remarks": "April fee paid"
+  "correctOption": "B",
+  "marks": 5,
+  "negativeMarks": 0
 }
 ```
 
-- Response:
-  - Payment summary and receipt details
-- Where to use:
-  - Collect fees screen
+### Payload Field Purpose
 
-### API: Fee Receipt
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `questionType` | string | Yes | Supports current MCQ design and future question types. |
+| `questionText` | string | Yes | Actual content shown in exam. |
+| `options` | array | Yes | MCQ answer choices. |
+| `correctOption` | string | Yes | Required for evaluation. |
+| `marks` | integer | Yes | Per-question scoring value. |
+| `negativeMarks` | number | No | Only relevant if negative marking is enabled. |
 
-- Status: `PROPOSED`
-- Purpose: View/download receipt
-- Description: Returns printable receipt data
-- Endpoint: `GET /api/fees/collections/{receiptId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Receipt object
-- Where to use:
-  - Receipt preview
-  - Print/download receipt
+## 19. Syllabus APIs
 
-## 5.9 Syllabus APIs
+## 19.1 Syllabus Summary
 
-### API: Get Syllabus by Class and Subject
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/syllabus/summary`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills syllabus completion page.
 
-- Status: `PROPOSED`
-- Purpose: Show syllabus modules
-- Description: Returns chapters/topics by class, subject, year
-- Endpoint: `GET /api/syllabus`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-  - `subjectId`
-  - `academicYear`
-- Response:
-  - Syllabus content
-- Where to use:
-  - Admin syllabus page
-  - Teacher syllabus progress
+## 19.2 Create Syllabus
 
-### API: Create or Update Syllabus
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/syllabus`
+- Auth: `SUPER_ADMIN`
+- Purpose: Saves the `Add New Syllabus` structure.
 
-- Status: `PROPOSED`
-- Purpose: Manage syllabus content
-- Description: Create or update chapter/topic plan
-- Endpoint: `POST /api/syllabus`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+### Request Payload
 
 ```json
 {
-  "batchId": "batch-uuid",
-  "subjectId": "subject-uuid",
-  "academicYear": "2026-27",
+  "subject": "Mathematics",
+  "classOrGrade": "5th Standard",
+  "academicYear": "2024-2025",
+  "description": "Core maths syllabus",
   "chapters": [
     {
-      "title": "Linear Equations",
-      "description": "Basic algebraic equations",
-      "month": "APRIL",
-      "topics": ["Variables", "Solving equations"]
+      "chapterName": "Algebra",
+      "subTopics": [
+        {"name": "Linear Equations", "questions": 15},
+        {"name": "Variables and Expressions", "questions": 12}
+      ]
     }
   ]
 }
 ```
 
-- Response:
-  - Syllabus object
-- Where to use:
-  - Add/edit syllabus
+### Payload Field Purpose
 
-### API: Syllabus Progress
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `subject` | string | Yes | Identifies the subject this syllabus belongs to. |
+| `classOrGrade` | string | Yes | Maps syllabus to student level. |
+| `academicYear` | string | Yes | Keeps syllabus versioned by session. |
+| `description` | string | No | Short summary shown in syllabus details. |
+| `chapters` | array | Yes | Top-level syllabus structure. |
+| `chapterName` | string | Yes | Chapter title visible in UI. |
+| `subTopics` | array | Yes | Smaller learning units tracked for completion. |
+| `questions` | integer | No | Planned question count used in assessment planning. |
 
-- Status: `PROPOSED`
-- Purpose: Track completion
-- Description: Returns chapter-level completion and in-progress counts
-- Endpoint: `GET /api/syllabus/progress`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `teacherId`
-  - `batchId`
-  - `subjectId`
-- Response:
-  - Progress object
-- Where to use:
-  - Teacher syllabus progress page
+## 20. Stationery APIs
 
-## 5.10 Tests and Marks APIs
+## 20.1 Stationery Summary
 
-### API: Create Test
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/stationery/summary`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills stationery overview cards, donut chart, and alerts.
 
-- Status: `PROPOSED`
-- Purpose: Create unit test/exam
-- Description: Saves test definition for a batch and subject
-- Endpoint: `POST /api/tests`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 20.2 Stationery Items List
 
-```json
-{
-  "batchId": "batch-uuid",
-  "subjectId": "subject-uuid",
-  "title": "Maths - Unit Test 2",
-  "testType": "UNIT_TEST",
-  "date": "2026-05-12",
-  "durationMinutes": 90,
-  "totalMarks": 50,
-  "questions": []
-}
-```
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/stationery/items`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns inventory table records.
 
-- Response:
-  - Test object
-- Where to use:
-  - Admin tests page
-  - Teacher create test page
+## 20.3 Create Stationery Item
 
-### API: List Tests
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/stationery/items`
+- Auth: `SUPER_ADMIN`
+- Purpose: Adds a new inventory item.
 
-- Status: `PROPOSED`
-- Purpose: Show tests table
-- Description: Returns tests with status, date, score summaries
-- Endpoint: `GET /api/tests`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-  - `subjectId`
-  - `testType`
-  - `status`
-  - `academicYear`
-  - `page`
-  - `size`
-- Response:
-  - Paginated test list
-- Where to use:
-  - Admin tests page
-  - Teacher tests and marks page
-  - Student tests list
-
-### API: Test Analytics Summary
-
-- Status: `PROPOSED`
-- Purpose: Show test analytics charts
-- Description: Returns average score, top performers, score bands, subject strengths/weaknesses
-- Endpoint: `GET /api/tests/{testId}/analytics`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Analytics object
-- Where to use:
-  - Test analytics page
-
-### API: Student Performance by Test
-
-- Status: `PROPOSED`
-- Purpose: Show all student results in one test
-- Description: Returns ranking and status for all students
-- Endpoint: `GET /api/tests/{testId}/students-performance`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Paginated ranked results
-- Where to use:
-  - All students performance page
-
-### API: Individual Student Test Performance
-
-- Status: `PROPOSED`
-- Purpose: Show question analysis for one student
-- Description: Returns per-question answer correctness and section summary
-- Endpoint: `GET /api/tests/{testId}/students/{studentId}/performance`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Detailed student performance object
-- Where to use:
-  - Student performance page
-  - Admin test review
-
-### API: Student Test History
-
-- Status: `PROPOSED`
-- Purpose: Student portal test history
-- Description: Returns test list, scores, status, subject-wise performance
-- Endpoint: `GET /api/student/tests`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Student test history
-- Where to use:
-  - Student tests and marks page
-
-### API: Test Detail for Student
-
-- Status: `PROPOSED`
-- Purpose: View test detail and analysis in student portal
-- Description: Returns score, percentile, section analysis, downloadable resources
-- Endpoint: `GET /api/student/tests/{testId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Student test detail object
-- Where to use:
-  - Student test detail page
-
-### API: Start Test / Submit Test
-
-- Status: `PROPOSED`
-- Purpose: Attempt online test
-- Description: Supports student exam attempt flow
-- Endpoint: `POST /api/student/tests/{testId}/attempts`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+### Request Payload
 
 ```json
 {
-  "answers": [
-    {
-      "questionId": "question-uuid",
-      "selectedOption": "B"
-    }
-  ]
-}
-```
-
-- Response:
-  - Attempt summary
-- Where to use:
-  - Student attempt test page
-
-## 5.11 Homework and Assignment APIs
-
-### API: Create Homework
-
-- Status: `PROPOSED`
-- Purpose: Assign homework from admin or teacher side
-- Description: Creates homework with instructions, due date, attachments, and students/batch assignment
-- Endpoint: `POST /api/homeworks`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "batchId": "batch-uuid",
-  "subjectId": "subject-uuid",
-  "title": "Linear Equation Worksheet",
-  "description": "Solve all questions",
-  "assignedDate": "2026-05-10",
-  "dueDate": "2026-05-20",
-  "allowLateSubmission": false,
-  "allowResubmission": false,
-  "students": ["student-uuid-1", "student-uuid-2"]
-}
-```
-
-- Response:
-  - Homework object
-- Where to use:
-  - Admin add homework page
-  - Teacher create homework page
-
-### API: List Homework / Assignments
-
-- Status: `PROPOSED`
-- Purpose: Show homework and assignments lists
-- Description: Returns list by batch, subject, teacher, status, date range
-- Endpoint: `GET /api/homeworks`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-  - `subjectId`
-  - `assignedBy`
-  - `status`
-  - `fromDate`
-  - `toDate`
-  - `page`
-  - `size`
-- Response:
-  - Paginated homework list
-- Where to use:
-  - Admin homework page
-  - Teacher homework page
-  - Student homework page
-
-### API: Homework Submission Report
-
-- Status: `PROPOSED`
-- Purpose: Show submitted, pending, overdue analytics
-- Description: Returns submission summary and student-wise records
-- Endpoint: `GET /api/homeworks/{homeworkId}/submission-report`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Submission report object
-- Where to use:
-  - Submission report page
-
-### API: Student Homework Detail
-
-- Status: `PROPOSED`
-- Purpose: Show homework detail in student portal
-- Description: Returns homework instructions, tasks, attachments, submission status
-- Endpoint: `GET /api/student/homeworks/{homeworkId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Homework detail object
-- Where to use:
-  - Student homework detail page
-
-### API: Upload Homework Submission
-
-- Status: `PROPOSED`
-- Purpose: Submit homework from student portal
-- Description: Uploads answer files and marks submission time
-- Endpoint: `POST /api/student/homeworks/{homeworkId}/submissions`
-- Headers:
-  - `Authorization: Bearer <token>`
-  - `Content-Type: multipart/form-data`
-- Payload:
-  - file attachments
-- Response:
-  - Submission summary
-- Where to use:
-  - Student homework submission page
-
-## 5.12 Reports APIs
-
-### API: Reports Summary
-
-- Status: `PROPOSED`
-- Purpose: Fill reports dashboard cards and charts
-- Description: Returns aggregate counts for students, attendance, tests, fees, homework
-- Endpoint: `GET /api/reports/summary`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `reportType`
-  - `batchId`
-  - `dateFrom`
-  - `dateTo`
-- Response:
-  - Report dashboard object
-- Where to use:
-  - Reports page
-
-### API: Download Reports
-
-- Status: `PROPOSED`
-- Purpose: Export reporting data
-- Description: Returns file or signed download URL
-- Endpoint: `GET /api/reports/export`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `reportType`
-  - `batchId`
-  - `dateFrom`
-  - `dateTo`
-  - `format=pdf|xlsx|csv`
-- Response:
-  - File response or URL
-- Where to use:
-  - Export buttons
-
-## 5.13 Stationery APIs
-
-### API: Stationery Summary
-
-- Status: `PROPOSED`
-- Purpose: Inventory dashboard cards
-- Description: Returns stock counts, low stock, out-of-stock, total value
-- Endpoint: `GET /api/stationery/summary`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Inventory summary object
-- Where to use:
-  - Stationery page
-
-### API: List Stationery Items
-
-- Status: `PROPOSED`
-- Purpose: Inventory table
-- Description: Returns stationery items with stock and value
-- Endpoint: `GET /api/stationery/items`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `category`
-  - `itemStatus`
-  - `stockStatus`
-  - `search`
-  - `page`
-  - `size`
-- Response:
-  - Paginated inventory items
-- Where to use:
-  - Stationery list
-
-### API: Stock In / Stock Out
-
-- Status: `PROPOSED`
-- Purpose: Track inventory movement
-- Description: Records quantity increase or decrease
-- Endpoint: `POST /api/stationery/transactions`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "itemId": "item-uuid",
-  "type": "STOCK_IN",
-  "quantity": 100,
+  "itemName": "Blue Ball Pen",
+  "category": "Writing",
+  "unit": "Pcs",
+  "stockQuantity": 1250,
   "unitPrice": 10,
-  "remarks": "New purchase"
+  "supplier": "ABC Stationers",
+  "minimumStock": 200
 }
 ```
 
-- Response:
-  - Transaction summary
-- Where to use:
-  - Stock in button
-  - Stock out button
+### Payload Field Purpose
 
-## 5.14 Daily Timesheet APIs
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `itemName` | string | Yes | Name shown in inventory table. |
+| `category` | string | Yes | Used in category filters and summary grouping. |
+| `unit` | string | Yes | Measurement label such as pieces or packs. |
+| `stockQuantity` | integer | Yes | Opening or current stock count. |
+| `unitPrice` | number | Yes | Used to compute stock value. |
+| `supplier` | string | No | Supplier filter and purchase context. |
+| `minimumStock` | integer | Yes | Used to generate low stock alerts. |
 
-### API: Timesheet Summary
+## 20.4 Stock Movement
 
-- Status: `PROPOSED`
-- Purpose: Daily timesheet cards and history
-- Description: Returns total weekly hours, today hours, monthly hours, overtime, history
-- Endpoint: `GET /api/timesheets/me`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `month`
-- Response:
-  - Timesheet dashboard object
-- Where to use:
-  - Daily timesheet page
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/stationery/transactions`
+- Auth: `SUPER_ADMIN`
+- Purpose: Records stock in and stock out events.
 
-### API: Create Timesheet Entry
+## 21. Timesheet APIs
 
-- Status: `PROPOSED`
-- Purpose: Save work log
-- Description: Records check-in, check-out, work details, total hours
-- Endpoint: `POST /api/timesheets`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 21.1 Timesheet Summary
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/timesheets`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the admin timesheet summary and table view.
+
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `status` | string | No | Filters approved, pending, or rejected timesheets. |
+| `search` | string | No | Searches by admin name or admin ID. |
+| `fromDate` | date | No | Week or date range start. |
+| `toDate` | date | No | Week or date range end. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
+## 21.2 Timesheet Detail
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/timesheets/{timesheetId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills the timesheet details page.
+
+## 21.3 Review Timesheet
+
+- Status: `PLANNED`
+- Endpoint: `PATCH /api/super-admin/timesheets/{timesheetId}/review`
+- Auth: `SUPER_ADMIN`
+- Purpose: Approves or rejects an admin timesheet entry set.
+
+### Request Payload
 
 ```json
 {
-  "date": "2026-05-14",
-  "checkInTime": "09:05:00",
-  "checkOutTime": "18:10:00",
-  "workDescription": "Prepared reports and verified student payments"
+  "status": "APPROVED",
+  "comment": "All entries have been reviewed."
 }
 ```
 
-- Response:
-  - Timesheet entry
-- Where to use:
-  - Daily timesheet form
+## 22. Teacher Payout APIs
 
-## 5.15 Notification Management APIs
+## 22.1 Teacher Payout Summary
 
-### API: Send Notification
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/teacher-payouts`
+- Auth: `SUPER_ADMIN`
+- Purpose: Fills teacher payout tracking screen.
 
-- Status: `PROPOSED`
-- Purpose: Compose and send notification
-- Description: Creates notification job for audience
-- Endpoint: `POST /api/notifications/send`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
+## 22.2 Process Teacher Payout
+
+- Status: `PLANNED`
+- Endpoint: `POST /api/super-admin/teacher-payouts/{teacherId}/process`
+- Auth: `SUPER_ADMIN`
+- Purpose: Marks pending payout as paid for a teacher and date range.
+
+### Request Payload
 
 ```json
 {
-  "title": "Fee Reminder",
-  "message": "Please clear pending fee.",
-  "priority": "HIGH",
-  "sendImmediately": true,
-  "templateId": null,
-  "audience": {
-    "roles": ["PARENT"],
-    "batchIds": ["batch-uuid"]
-  },
-  "channels": ["IN_APP", "EMAIL"]
+  "fromDate": "2026-05-01",
+  "toDate": "2026-05-31",
+  "paidAmount": 93900,
+  "paymentReference": "UTR12345",
+  "remarks": "Processed for May payroll"
 }
 ```
 
-- Response:
-  - Notification campaign summary
-- Where to use:
-  - Send new notification page
-
-### API: Notification History
-
-- Status: `PROPOSED`
-- Purpose: Show sent, scheduled, drafts
-- Description: Returns notification history by type and status
-- Endpoint: `GET /api/notifications/history`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `status`
-  - `audience`
-  - `page`
-  - `size`
-- Response:
-  - Paginated campaign list
-- Where to use:
-  - Notifications admin page
-
-### API: Notification Templates
-
-- Status: `PROPOSED`
-- Purpose: Reuse templates
-- Description: CRUD for notification templates
-- Endpoint: `GET /api/notifications/templates`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Template list
-- Where to use:
-  - Notification template management
-
-## 5.16 Teacher Workflow APIs
-
-### API: Teacher Schedule
-
-- Status: `PROPOSED`
-- Purpose: Show teacher daily/weekly schedule
-- Description: Returns classes by day or week
-- Endpoint: `GET /api/teacher/my-schedule`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `view=day|week|month`
-  - `fromDate`
-  - `toDate`
-- Response:
-  - Schedule object
-- Where to use:
-  - Teacher my schedule screen
-
-### API: Start Class
-
-- Status: `PROPOSED`
-- Purpose: Begin live class session
-- Description: Records class in state and planned coverage
-- Endpoint: `POST /api/teacher/classes/start`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "batchId": "batch-uuid",
-  "subjectId": "subject-uuid",
-  "chapterId": "chapter-uuid",
-  "subtopics": ["Linear equations", "Practice problems"]
-}
-```
-
-- Response:
-  - Class session object
-- Where to use:
-  - Start class (IN) page
-
-### API: End Class
-
-- Status: `PROPOSED`
-- Purpose: Complete class session
-- Description: Records actual topics covered, homework, remarks, duration
-- Endpoint: `POST /api/teacher/classes/{sessionId}/end`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Payload:
-
-```json
-{
-  "coveredTopics": ["Linear equations", "Practice problems"],
-  "remarks": "Students understood basics well",
-  "homeworkId": "homework-uuid"
-}
-```
-
-- Response:
-  - Session summary
-- Where to use:
-  - End class modal
-
-### API: Weekly Plan
-
-- Status: `PROPOSED`
-- Purpose: Teacher planning board
-- Description: Returns planned classes, assignments, goals, notes
-- Endpoint: `GET /api/teacher/weekly-plan`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `weekStart`
-- Response:
-  - Weekly plan object
-- Where to use:
-  - Weekly plan screen
-
-### API: Teacher Students List
-
-- Status: `PROPOSED`
-- Purpose: Show students under teacher classes
-- Description: Returns students taught by current teacher with attendance/performance indicators
-- Endpoint: `GET /api/teacher/students`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `batchId`
-  - `section`
-  - `status`
-  - `search`
-- Response:
-  - Paginated student list
-- Where to use:
-  - Teacher students page
-
-## 5.17 Student Portal APIs
-
-### API: Student My Schedule
-
-- Status: `PROPOSED`
-- Purpose: Student schedule view
-- Description: Returns daily or weekly timetable for current student
-- Endpoint: `GET /api/student/my-schedule`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Schedule object
-- Where to use:
-  - Student my schedule page
-
-### API: Student Assignments List
-
-- Status: `PROPOSED`
-- Purpose: Show assignments to student
-- Description: Returns all, pending, submitted, overdue assignments
-- Endpoint: `GET /api/student/assignments`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `status`
-  - `search`
-  - `page`
-  - `size`
-- Response:
-  - Paginated assignment list
-- Where to use:
-  - Student assignments page
-
-### API: Student Assignment Detail
-
-- Status: `PROPOSED`
-- Purpose: Show assignment detail and submission
-- Description: Returns assignment instructions, attachments, review status
-- Endpoint: `GET /api/student/assignments/{assignmentId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Assignment detail object
-- Where to use:
-  - Assignment detail page
-
-### API: Student Attendance Summary
-
-- Status: `PROPOSED`
-- Purpose: Student self-attendance page
-- Description: Returns overview, trend, records, subject-wise attendance
-- Endpoint: `GET /api/student/attendance`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Attendance dashboard object
-- Where to use:
-  - Student attendance page
-
-### API: Student Announcements
-
-- Status: `PROPOSED`
-- Purpose: Announcement center
-- Description: Returns school announcements by category
-- Endpoint: `GET /api/student/announcements`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Query Parameters:
-  - `category`
-  - `search`
-- Response:
-  - Paginated announcement list
-- Where to use:
-  - Student announcements page
-
-### API: Student Profile
-
-- Status: `PROPOSED`
-- Purpose: Personal profile screen
-- Description: Returns personal, academic, guardian, achievement, and account details
-- Endpoint: `GET /api/student/profile`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Profile object
-- Where to use:
-  - Student profile page
-
-## 5.18 Parent Portal APIs
-
-These are not clearly shown in the screenshots but are implied by the backend comments and student admission flow.
-
-### API: Parent Dashboard
-
-- Status: `PROPOSED`
-- Purpose: Parent overview
-- Description: Returns child attendance, fees, homework, tests, announcements
-- Endpoint: `GET /api/parent/dashboard`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Parent dashboard summary
-- Where to use:
-  - Parent app/web portal
-
-### API: Parent Child Profile
-
-- Status: `PROPOSED`
-- Purpose: View child details
-- Description: Returns child academic and attendance summary
-- Endpoint: `GET /api/parent/children/{studentId}`
-- Headers:
-  - `Authorization: Bearer <token>`
-- Response:
-  - Student summary object
-- Where to use:
-  - Parent child overview
-
-## 6. API Build Priority
-
-Recommended implementation order:
-
-1. `Auth alignment`
-   - Support login by `identifier` instead of email-only
-   - Make student and parent login compatible with Figma
-2. `Master data`
-   - Branches
-   - Batches
-   - Subjects
-   - Fee structures
-3. `Leads and admissions`
-   - Leads
-   - Follow-ups
-   - Convert to admission
-4. `Student and teacher management enhancement`
-   - Edit profile
-   - Full profile APIs
-   - Subject assignment
-5. `Attendance`
-6. `Timetable`
-7. `Homework and tests`
-8. `Fees`
-9. `Reports`
-10. `Teacher and student portal APIs`
-11. `Notifications composer and templates`
-12. `Stationery and timesheet`
-
-## 7. Important Backend Gaps to Fix Before Frontend Merge
-
-### 7.1 Student Login Gap
-
-Current issue:
-- Student creation returns `loginId`
-- Login still accepts only `email`
-
-Impact:
-- Student portal and parent portal login will not work as designed
-
-Required fix:
-- Change login request to accept `identifier`
-- Support:
-  - email for staff/admin
-  - loginId for student/parent
-
-### 7.2 Photo Upload Gap
-
-Current issue:
-- Student finalisation requires photo
-- Photo upload endpoint is commented out
-
-Impact:
-- Admission flow remains incomplete
-
-Required fix:
-- Restore and implement `POST /api/users/students/{id}/photo`
-
-### 7.3 Missing Database Migrations
-
-Current issue:
-- Flyway is enabled
-- Migration folder is empty
-- JPA `ddl-auto: update` is currently carrying schema changes
-
-Impact:
-- Unsafe for production
-- Difficult for team synchronization
-
-Required fix:
-- Add proper Flyway migration scripts
-- Seed:
-  - roles
-  - permissions
-  - initial master data where required
-
-### 7.4 Role and Parent Model Gap
-
-Current issue:
-- `PARENT` role exists in enum
-- No parent entity or parent-facing APIs exist
-
-Impact:
-- Parent portal cannot be implemented cleanly
-
-Required fix:
-- Add parent account strategy
-- Either:
-  - separate parent user entity and auth
-  - or explicit linked guardian login model
-
-## 8. Suggested Frontend Usage Strategy
-
-Frontend team should:
-
-1. Integrate immediately with created APIs for:
-   - tenant registration
-   - login
-   - auth refresh
-   - current user
-   - create/list/get students
-   - create/list/get teachers
-   - notifications
-
-2. Keep these screens on mock or adapter mode until backend is ready:
-   - dashboard
-   - attendance
-   - fees
-   - timetable
-   - homework
-   - tests
-   - reports
-   - stationery
-   - daily timesheet
-   - teacher and student detailed portal flows
-
-3. Use role-based routing based on `/api/auth/me`
-
-4. Keep one shared API client that unwraps the standard `ApiResponse`
-
-## 9. Final Summary
-
-Current backend coverage is strongest in:
-- tenant setup
-- authentication
-- basic student management
-- basic teacher management
-- notification inbox
-
-Major Figma-aligned backend work still required:
-- leads and admissions
-- attendance
-- timetable
-- fees
-- homework and assignments
-- tests and marks
-- reports
-- stationery
-- daily timesheet
-- teacher operational workflows
-- student portal
-- parent portal
-
-This document should be treated as the initial API contract and implementation roadmap for turning the existing backend into the full application shown in the Figma design.
+## 23. System Settings APIs
+
+The design shows system settings split into tabs, so the API should also be modular rather than one oversized settings payload.
+
+## 23.1 Get General Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/general`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns school information, preferences, grading, email, SMS, and backup settings for the general settings screen.
+
+## 23.2 Update General Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/general`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates general settings form.
+
+## 23.3 Get Academic Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/academic`
+
+## 23.4 Update Academic Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/academic`
+
+## 23.5 Get Attendance Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/attendance`
+
+## 23.6 Update Attendance Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/attendance`
+
+## 23.7 Get Exam and Test Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/exam-test`
+
+## 23.8 Update Exam and Test Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/exam-test`
+
+## 23.9 Get Notification Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/notifications`
+
+## 23.10 Update Notification Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/notifications`
+
+## 23.11 Get Security Settings
+
+- Status: `PLANNED`
+- Endpoint: `GET /api/super-admin/settings/security`
+
+## 23.12 Update Security Settings
+
+- Status: `PLANNED`
+- Endpoint: `PUT /api/super-admin/settings/security`
+
+### Example Update Payload for Settings Tabs
+
+The exact payload differs by tab, but the design suggests the backend should:
+- keep each tab in a dedicated DTO
+- validate only tab-specific fields
+- persist only what the current tab owns
+- avoid sending one giant cross-tab settings payload
+
+## 24. Authorization Matrix for Super Admin Phase
+
+| API Group | Public | Authenticated | `SUPER_ADMIN` |
+|---|---:|---:|---:|
+| Bootstrap super admin | Yes | No | No |
+| Login and refresh | Yes | No | No |
+| Logout, me, change password | No | Yes | No |
+| Super admin dashboard | No | No | Yes |
+| Branch overview | No | No | Yes |
+| Admin management | No | No | Yes |
+| Teacher management | No | No | Yes |
+| Student management | No | No | Yes |
+| Leads and admissions | No | No | Yes |
+| Analytics | No | No | Yes |
+| Reports | No | No | Yes |
+| Feedback | No | No | Yes |
+| Attendance overview | No | No | Yes |
+| Tests and syllabus | No | No | Yes |
+| Stationery, timesheet, payouts | No | No | Yes |
+| System settings | No | No | Yes |
+
+## 25. Database Notes for API Builders
+
+Current schema already provides these foundations:
+- `users`
+- `roles`
+- `user_roles`
+- `branches`
+- `admin_profiles`
+- `teachers`
+- `students`
+- `refresh_tokens`
+- `operational_records`
+
+Admin management is now implemented using:
+- `users` for login identity, status, login tracking, and branch link
+- `admin_profiles` for admin-only profile fields like date of birth, gender, joining date, access level, address, and all-branches access
+- `operational_records` for create, update, activate, deactivate, and delete activity entries
+
+Branch management is now implemented using:
+- the existing `branches` table from the foundation migration
+- branch-level aggregates from `students`, `teachers`, and branch-scoped `ADMIN` users
+- `operational_records` for create, update, activate, deactivate, and delete branch activity entries
+
+Recommended use of `operational_records` for the super admin phase:
+- quick dashboard metrics
+- fee collection events
+- attendance events
+- lead and admission funnel tracking
+- test activities
+- feedback counts
+- recent activity feed
+
+Recommended future dedicated tables for cleaner module APIs:
+- leads
+- admissions
+- admin_profiles
+- teacher_subjects
+- classes or batches
+- tests
+- test_questions
+- syllabus
+- stationery_items
+- stationery_transactions
+- timesheets
+- teacher_payouts
+- settings tables by module
+
+## 26. Frontend Integration Sequence
+
+Frontend should integrate the super admin phase in this order:
+
+1. bootstrap super admin
+2. login
+3. `/api/auth/me`
+4. dashboard
+5. shared branch filter endpoint
+6. module list pages
+7. create forms
+8. detail drawers
+9. status update actions
+10. exports and settings tabs
+
+## 27. Final Summary
+
+The project is now centered on a non-tenant architecture with one independent super admin bootstrap flow.
+
+The currently implemented APIs are:
+- bootstrap super admin
+- login
+- refresh
+- logout
+- logout all
+- change password
+- current user
+- dashboard summary
+- branch options
+- branch list and summary
+- branch detail
+- create branch
+- update branch
+- change branch status
+- delete branch
+- admin list
+- admin detail
+- create admin
+- update admin
+- change admin status
+- delete admin
+
+The remaining APIs in this document are the approved super-admin-phase contract and should be implemented next, strictly following the designs and without expanding into non-visible features yet.

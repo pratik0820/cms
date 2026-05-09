@@ -1,23 +1,24 @@
 package com.classmanager.cms_backend.service;
 
+import com.classmanager.cms_backend.dto.request.BootstrapSuperAdminRequest;
 import com.classmanager.cms_backend.dto.request.ChangePasswordRequest;
 import com.classmanager.cms_backend.dto.request.LoginRequest;
 import com.classmanager.cms_backend.dto.request.RefreshTokenRequest;
 import com.classmanager.cms_backend.dto.response.AuthResponse;
 import com.classmanager.cms_backend.entity.RefreshToken;
 import com.classmanager.cms_backend.entity.Role;
-import com.classmanager.cms_backend.entity.Tenant;
 import com.classmanager.cms_backend.entity.User;
+import com.classmanager.cms_backend.enums.UserRole;
 import com.classmanager.cms_backend.exception.BadRequestException;
+import com.classmanager.cms_backend.exception.ResourceAlreadyExistsException;
 import com.classmanager.cms_backend.exception.ResourceNotFoundException;
 import com.classmanager.cms_backend.exception.UnauthorizedException;
 import com.classmanager.cms_backend.repository.RefreshTokenRepository;
-import com.classmanager.cms_backend.repository.TenantRepository;
+import com.classmanager.cms_backend.repository.RoleRepository;
 import com.classmanager.cms_backend.repository.UserRepository;
 import com.classmanager.cms_backend.security.CmsUserDetails;
 import com.classmanager.cms_backend.security.jwt.JwtProperties;
 import com.classmanager.cms_backend.security.jwt.JwtService;
-import com.classmanager.cms_backend.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -38,18 +39,20 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService extends BaseService {
+public class AuthService {
 
     private static final Logger log = LogManager.getLogger(AuthService.class);
+
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final TenantRepository tenantRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
 
@@ -59,142 +62,85 @@ public class AuthService extends BaseService {
     @Value("${rate-limit.login-window-minutes:15}")
     private int loginLockMinutes;
 
+    @Transactional
+    public AuthResponse bootstrapSuperAdmin(BootstrapSuperAdminRequest request, HttpServletRequest httpRequest) {
+        if (userRepository.existsByRoleName(UserRole.SUPER_ADMIN.name())) {
+            throw new ResourceAlreadyExistsException("A super admin account already exists.");
+        }
+        ensurePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
+
+        String normalizedEmail = normalizeIdentifier(request.getEmail());
+        if (userRepository.existsByEmailIgnoreCaseAndIsDeletedFalse(normalizedEmail)) {
+            throw new ResourceAlreadyExistsException("A user with this email already exists.");
+        }
+
+        Role superAdminRole = roleRepository.findByName(UserRole.SUPER_ADMIN.name())
+                .orElseThrow(() -> new ResourceNotFoundException("Role", UserRole.SUPER_ADMIN.name()));
+
+        User user = User.builder()
+                .email(normalizedEmail)
+                .fullName(request.getFullName().trim())
+                .phone(StringUtils.hasText(request.getPhone()) ? request.getPhone().trim() : null)
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .roles(Set.of(superAdminRole))
+                .isActive(true)
+                .build();
+
+        user.recordSuccessfulLogin();
+        user = userRepository.save(user);
+
+        String accessToken = generateAccessToken(user);
+        String rawRefreshToken = persistRefreshToken(user, httpRequest);
+
+        log.info("Bootstrap super admin created with userId={}", user.getId());
+        return buildAuthResponse(user, accessToken, rawRefreshToken);
+    }
 
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
-
-        String identifier = request.getLoginIdentifier();
-        if (!StringUtils.hasText(identifier)) {
+        String loginIdentifier = normalizeIdentifier(request.getLoginIdentifier());
+        if (!StringUtils.hasText(loginIdentifier)) {
             throw new UnauthorizedException("Email or login ID is required", "AUTH_IDENTIFIER_REQUIRED");
         }
-        identifier = identifier.toLowerCase().trim();
-        String loginIdentifier = identifier;
-        UUID requestedTenantId = resolveRequestedTenantId(request);
 
-        log.info("Login attempt for identifier={} tenantId={}", loginIdentifier, requestedTenantId);
+        User user = findLoginUser(loginIdentifier);
 
-        // Step 1: Find user by staff email or generated student loginId.
-        User user = userRepository.findByEmailAndTenantIdAndIsDeletedFalse(loginIdentifier, requestedTenantId)
-                .or(() -> userRepository.findStudentUserByLoginIdAndTenantId(loginIdentifier, requestedTenantId))
-                .orElseThrow(() -> {
-                    log.warn("Login failed - user not found or tenant mismatch. identifier={} tenantId={}",
-                            loginIdentifier, requestedTenantId);
-                    return new UnauthorizedException(
-                            "Invalid email/login ID, password, or tenant",
-                            "AUTH_INVALID_CREDENTIALS"
-                    );
-                });
-
-        log.debug("User found | userId={} email={}", user.getId(), user.getEmail());
-
-        // Step 1.1  Validate tenant explicitly
-        if (!user.getTenantId().equals(requestedTenantId)) {
-            log.error("Tenant mismatch during login! identifier={} tokenTenant={} actualTenant={}",
-                    loginIdentifier, requestedTenantId, user.getTenantId());
-            throw new UnauthorizedException("Invalid tenant access", "AUTH_TENANT_MISMATCH");
-        }
-
-        // Step 2: Check account status
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            log.warn("Login blocked - account disabled | email={}", user.getEmail());
             throw new UnauthorizedException("Account is disabled. Contact admin.", "AUTH_ACCOUNT_DISABLED");
         }
         if (user.isAccountLocked()) {
-            log.warn("Login blocked - account locked | email={} lockedUntil={}",
-                    user.getEmail(), user.getLockedUntil());
             throw new UnauthorizedException(
                     "Account temporarily locked. Try again after " + user.getLockedUntil(),
-                    "AUTH_ACCOUNT_LOCKED");
+                    "AUTH_ACCOUNT_LOCKED"
+            );
         }
 
-        // Step 3: Authenticate (validates BCrypt password)
         try {
-            log.debug("Authenticating user | identifier={}", loginIdentifier);
-            TenantContext.setCurrentTenant(requestedTenantId);
-
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            user.getEmail(), request.getPassword()
-                    )
+                    new UsernamePasswordAuthenticationToken(loginIdentifier, request.getPassword())
             );
 
             CmsUserDetails userDetails = (CmsUserDetails) auth.getPrincipal();
-
-            if (!userDetails.getTenantId().equals(requestedTenantId)) {
-                log.error("Post-auth tenant mismatch | email={} tokenTenant={} actualTenant={}",
-                        user.getEmail(), requestedTenantId, userDetails.getTenantId());
-                throw new SecurityException("Tenant mismatch after authentication");
-            }
-
+            user = userDetails.getUser();
             user.recordSuccessfulLogin();
-            log.info("Authentication successful | email={} userId={}", user.getEmail(), user.getId());
-
         } catch (Exception ex) {
-            // Record failed attempt and potentially lock account
             user.recordFailedLogin(maxLoginAttempts, loginLockMinutes);
             userRepository.save(user);
-            log.warn("Failed login attempt for identifier: {}", loginIdentifier);
             throw new UnauthorizedException("Invalid email or password", "AUTH_INVALID_CREDENTIALS");
         }
 
-        // Step 4: Generate access token
-        UUID branchId = user.getBranch() != null ? user.getBranch().getId() : null;
-
-        log.debug("Generating access token | userId={} tenantId={}", user.getId(), user.getTenantId());
-
-        List<String> roles = user.getRoles().stream()
-                .map(Role::getName)
-                .toList();
-
-        String accessToken = jwtService.generateAccessToken(
-                user.getId(), user.getTenantId(), roles, branchId, user.getEmail()
-        );
-
-        log.debug("Generating refresh token | userId={}", user.getId());
-
-        // Step 5: Generate & store refresh token
-        String rawRefreshToken = generateSecureToken();
-        String hashedRefreshToken = hashToken(rawRefreshToken);
-
-        RefreshToken refreshToken = RefreshToken.builder()
-                .user(user)
-                .tokenHash(hashedRefreshToken)
-                .expiresAt(LocalDateTime.now().plusSeconds(
-                        jwtProperties.getRefreshTokenExpiryMs() / 1000))
-                .ipAddress(getClientIp(httpRequest))
-                .userAgent(httpRequest.getHeader("User-Agent"))
-                .build();
-        refreshTokenRepository.save(refreshToken);
-
-        log.debug("Refresh token stored | userId={}", user.getId());
-
-        // Step 6: Update FCM token
         if (StringUtils.hasText(request.getFcmToken())) {
-            user.setFcmToken(request.getFcmToken());
-            log.debug("FCM token updated | email={}", user.getEmail());
+            user.setFcmToken(request.getFcmToken().trim());
         }
-
         userRepository.save(user);
 
-        // Step 7: Load tenant info for response
-        Tenant tenant = tenantRepository.findById(user.getTenantId())
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant", user.getTenantId()));
+        String accessToken = generateAccessToken(user);
+        String rawRefreshToken = persistRefreshToken(user, httpRequest);
 
-        log.info("Successful login: {} | tenant: {} | role: {}",
-                user.getEmail(), tenant.getName(), user.getRoles());
-
-        return buildAuthResponse(user, tenant, accessToken, rawRefreshToken);
+        log.info("Login successful for userId={} roles={}", user.getId(), user.getRoles());
+        return buildAuthResponse(user, accessToken, rawRefreshToken);
     }
 
-    // ─── REFRESH TOKEN ───────────────────────────────────────────────────────
-
-    /**
-     * Exchanges a valid refresh token for a new access token + rotated refresh token.
-     *
-     * Refresh token rotation: the old refresh token is marked as used and a new one
-     * is issued. If a token is reused (already marked used), all tokens for that user
-     * are revoked (possible token theft detected).
-     */
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest) {
         String hashedToken = hashToken(request.getRefreshToken());
@@ -203,10 +149,7 @@ public class AuthService extends BaseService {
                 .orElseThrow(() -> new UnauthorizedException(
                         "Invalid or expired refresh token", "AUTH_INVALID_REFRESH_TOKEN"));
 
-        // Detect token reuse — possible theft
         if (storedToken.isUsed()) {
-            log.warn("Refresh token reuse detected for user: {}. Revoking all tokens.",
-                    storedToken.getUser().getId());
             refreshTokenRepository.revokeAllForUser(
                     storedToken.getUser().getId(), LocalDateTime.now(), "REUSE_DETECTED");
             throw new UnauthorizedException(
@@ -220,69 +163,36 @@ public class AuthService extends BaseService {
         }
 
         User user = storedToken.getUser();
-
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new UnauthorizedException("Account is disabled.", "AUTH_ACCOUNT_DISABLED");
         }
 
-        // Mark old token as used (rotation)
         storedToken.markUsed();
         refreshTokenRepository.save(storedToken);
 
-        // Issue new access token
-        UUID branchId = user.getBranch() != null ? user.getBranch().getId() : null;
-
-        List<String> roles = user.getRoles().stream()
-                .map(Role::getName)
-                .toList();
-
-        String newAccessToken = jwtService.generateAccessToken(
-                user.getId(), user.getTenantId(), roles, branchId, user.getEmail()
-        );
-
-        // Issue new refresh token
-        String rawNewRefreshToken = generateSecureToken();
-        RefreshToken newRefreshToken = RefreshToken.builder()
-                .user(user)
-                .tokenHash(hashToken(rawNewRefreshToken))
-                .expiresAt(LocalDateTime.now().plusSeconds(
-                        jwtProperties.getRefreshTokenExpiryMs() / 1000))
-                .ipAddress(getClientIp(httpRequest))
-                .userAgent(httpRequest.getHeader("User-Agent"))
-                .build();
-        refreshTokenRepository.save(newRefreshToken);
-
-        Tenant tenant = tenantRepository.findById(user.getTenantId())
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant", user.getTenantId()));
-
-        return buildAuthResponse(user, tenant, newAccessToken, rawNewRefreshToken);
+        String accessToken = generateAccessToken(user);
+        String rawRefreshToken = persistRefreshToken(user, httpRequest);
+        return buildAuthResponse(user, accessToken, rawRefreshToken);
     }
 
-    // ─── LOGOUT ──────────────────────────────────────────────────────────────
-
-    /** Revokes the specific refresh token (logout from current device). */
     @Transactional
     public void logout(RefreshTokenRequest request) {
         String hashedToken = hashToken(request.getRefreshToken());
         refreshTokenRepository.findByTokenHash(hashedToken)
-                .ifPresent(token -> token.revoke("USER_LOGOUT"));
+                .ifPresent(token -> {
+                    token.revoke("USER_LOGOUT");
+                    refreshTokenRepository.save(token);
+                });
     }
 
-    /** Revokes ALL refresh tokens for the user (logout from all devices). */
     @Transactional
     public void logoutAllDevices(UUID userId) {
         refreshTokenRepository.revokeAllForUser(userId, LocalDateTime.now(), "LOGOUT_ALL_DEVICES");
-        log.info("All refresh tokens revoked for user: {}", userId);
     }
-
-    // ─── CHANGE PASSWORD ─────────────────────────────────────────────────────
 
     @Transactional
     public void changePassword(UUID userId, ChangePasswordRequest request) {
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new BadRequestException(
-                    "New password and confirm password do not match", "PASSWORD_MISMATCH");
-        }
+        ensurePasswordConfirmation(request.getNewPassword(), request.getConfirmPassword());
 
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
@@ -293,40 +203,70 @@ public class AuthService extends BaseService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
-        // Invalidate all other sessions after password change
         refreshTokenRepository.revokeAllForUser(userId, LocalDateTime.now(), "PASSWORD_CHANGED");
-        log.info("Password changed for user: {}", userId);
     }
 
-    // ─── HELPERS ─────────────────────────────────────────────────────────────
+    public AuthResponse.UserInfo buildUserInfo(User user) {
+        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
+        return AuthResponse.UserInfo.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .loginId(user.getLoginId())
+                .fullName(user.getFullName())
+                .roles(roles)
+                .branchId(user.getBranch() != null ? user.getBranch().getId() : null)
+                .branchName(user.getBranch() != null ? user.getBranch().getName() : null)
+                .build();
+    }
 
-    private AuthResponse buildAuthResponse(User user, Tenant tenant,
-                                           String accessToken, String rawRefreshToken) {
+    private User findLoginUser(String loginIdentifier) {
+        return userRepository.findByEmailIgnoreCaseAndIsDeletedFalse(loginIdentifier)
+                .or(() -> userRepository.findByLoginIdIgnoreCaseAndIsDeletedFalse(loginIdentifier))
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password", "AUTH_INVALID_CREDENTIALS"));
+    }
 
-        List<String> roles = user.getRoles().stream()
-                .map(Role::getName)
-                .toList();
+    private String generateAccessToken(User user) {
+        UUID branchId = user.getBranch() != null ? user.getBranch().getId() : null;
+        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
+        return jwtService.generateAccessToken(user.getId(), roles, branchId, user.getEmail(), user.getLoginId());
+    }
 
+    private String persistRefreshToken(User user, HttpServletRequest httpRequest) {
+        String rawRefreshToken = generateSecureToken();
+        RefreshToken refreshToken = RefreshToken.builder()
+                .user(user)
+                .tokenHash(hashToken(rawRefreshToken))
+                .expiresAt(LocalDateTime.now().plusSeconds(jwtProperties.getRefreshTokenExpiryMs() / 1000))
+                .ipAddress(getClientIp(httpRequest))
+                .userAgent(httpRequest.getHeader("User-Agent"))
+                .build();
+        refreshTokenRepository.save(refreshToken);
+        return rawRefreshToken;
+    }
+
+    private AuthResponse buildAuthResponse(User user, String accessToken, String rawRefreshToken) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(rawRefreshToken)
                 .tokenType("Bearer")
                 .accessTokenExpiresIn(jwtProperties.getAccessTokenExpiryMs() / 1000)
-                .user(AuthResponse.UserInfo.builder()
-                        .id(user.getId())
-                        .email(user.getEmail())
-                        .fullName(user.getFullName())
-                        .roles(roles)
-                        .tenantId(user.getTenantId())
-                        .tenantName(tenant.getName())
-                        .branchId(user.getBranch() != null ? user.getBranch().getId() : null)
-                        .branchName(user.getBranch() != null ? user.getBranch().getName() : null)
-                        .build())
+                .user(buildUserInfo(user))
                 .build();
     }
 
-    /** Generates a cryptographically secure 256-bit random token. */
+    private void ensurePasswordConfirmation(String password, String confirmPassword) {
+        if (!password.equals(confirmPassword)) {
+            throw new BadRequestException(
+                    "Password and confirm password do not match",
+                    "PASSWORD_MISMATCH"
+            );
+        }
+    }
+
+    private String normalizeIdentifier(String identifier) {
+        return identifier == null ? null : identifier.trim().toLowerCase();
+    }
+
     private String generateSecureToken() {
         SecureRandom secureRandom = new SecureRandom();
         byte[] tokenBytes = new byte[32];
@@ -334,7 +274,6 @@ public class AuthService extends BaseService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
     }
 
-    /** SHA-256 hashes a token — stored in DB, never the raw token. */
     private String hashToken(String token) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -345,30 +284,11 @@ public class AuthService extends BaseService {
         }
     }
 
-    /** Extracts client IP, handles reverse proxies (X-Forwarded-For). */
     private String getClientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(forwardedFor)) {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
-    }
-
-    private UUID resolveRequestedTenantId(LoginRequest request) {
-        if (StringUtils.hasText(request.getTenantId())) {
-            try {
-                return UUID.fromString(request.getTenantId());
-            } catch (Exception e) {
-                throw new UnauthorizedException("Invalid credentials", "AUTH_INVALID_CREDENTIALS");
-            }
-        }
-
-        if (StringUtils.hasText(request.getTenantSubdomain())) {
-            return tenantRepository.findBySubdomainAndIsActiveTrue(request.getTenantSubdomain().trim().toLowerCase())
-                    .map(Tenant::getId)
-                    .orElseThrow(() -> new UnauthorizedException("Invalid credentials", "AUTH_INVALID_CREDENTIALS"));
-        }
-
-        throw new UnauthorizedException("Institute is required", "AUTH_TENANT_REQUIRED");
     }
 }

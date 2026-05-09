@@ -2,7 +2,6 @@ package com.classmanager.cms_backend.security.jwt;
 
 import com.classmanager.cms_backend.repository.UserRepository;
 import com.classmanager.cms_backend.security.CmsUserDetails;
-import com.classmanager.cms_backend.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,23 +36,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        try {
-            String token = extractTokenFromRequest(request);
+        String token = extractTokenFromRequest(request);
 
-            if (token != null && jwtService.isTokenValid(token)) {
-                authenticateRequest(request, token);
-            }
-
-            filterChain.doFilter(request, response);
-        } finally {
-            TenantContext.clear();
+        if (token != null && jwtService.isTokenValid(token)) {
+            authenticateRequest(request, token);
         }
+
+        filterChain.doFilter(request, response);
     }
 
     private void authenticateRequest(HttpServletRequest request, String token) {
         try {
             String userIdStr = jwtService.extractUserId(token);
-            UUID tokenTenantId = jwtService.extractTenantId(token);
 
             if (userIdStr != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
@@ -61,15 +55,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 userRepository.findByIdAndIsDeletedFalse(userId)
                         .ifPresent(user -> {
-
-                            if (!user.getTenantId().equals(tokenTenantId)) {
-                                log.error("Tenant mismatch! tokenTenantId={} actualTenantId={}",
-                                        tokenTenantId, user.getTenantId());
-                                throw new SecurityException("Invalid tenant access");
-                            }
-
-                            TenantContext.setCurrentTenant(user.getTenantId());
-
                             CmsUserDetails userDetails = new CmsUserDetails(user);
 
                             if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
@@ -84,8 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                         new WebAuthenticationDetailsSource().buildDetails(request)
                                 );
                                 SecurityContextHolder.getContext().setAuthentication(authToken);
-                                log.debug("Authenticated user: {} tenant: {} role: {}",
-                                        user.getEmail(), user.getTenantId(), user.getRoles());
+                                log.debug("Authenticated user: {} roles: {}",
+                                        user.getEmail(), user.getRoles());
                             }
                         });
             }
@@ -107,8 +92,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         return path.startsWith("/api/auth/login") ||
-                path.startsWith("/api/auth/register") ||
-                path.startsWith("/api/tenants/register") ||
+                path.startsWith("/api/auth/bootstrap/super-admin") ||
                 path.startsWith("/actuator/health") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/api-docs");

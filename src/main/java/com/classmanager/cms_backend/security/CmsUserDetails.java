@@ -15,9 +15,9 @@ import java.util.*;
 public class CmsUserDetails implements UserDetails {
 
     private final UUID userId;
-    private final UUID tenantId;
     private final String email;
     private final String passwordHash;
+    private final String loginId;
     private final UUID branchId;
     private final boolean active;
     private final boolean accountLocked;
@@ -27,8 +27,8 @@ public class CmsUserDetails implements UserDetails {
     public CmsUserDetails(User user) {
         this.user = user;
         this.userId       = user.getId();
-        this.tenantId     = user.getTenantId();
         this.email        = user.getEmail();
+        this.loginId      = user.getLoginId();
         this.passwordHash = user.getPasswordHash();
         this.branchId     = user.getBranch() != null ? user.getBranch().getId() : null;
         this.active       = Boolean.TRUE.equals(user.getIsActive());

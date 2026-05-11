@@ -25,6 +25,9 @@ public class Student extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "student_id")
+    private String studentId;
+
     @Column(name = "dob")
     private LocalDate dob;
 
@@ -56,6 +59,9 @@ public class Student extends BaseEntity {
     @Column(name = "standard")
     private String standard;
 
+    @Column(name = "batch")
+    private String batch;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "board")
     private BoardType board;
@@ -70,4 +76,8 @@ public class Student extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdByUser;
 }

@@ -3809,3 +3809,23 @@ jdk.internal.loader.ClassLoaders$AppClassLoader@76ed5528
 [DEBUG] 2026-05-09 22:29:44.099 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
 [DEBUG] 2026-05-09 22:29:44.100 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
 [DEBUG] 2026-05-09 22:29:44.102 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-09 22:30:14.106 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:30:14.107 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:30:14.108 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-09 22:30:44.115 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:30:44.115 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:30:44.116 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[DEBUG] 2026-05-09 22:31:14.124 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Before cleanup stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:31:14.125 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - After cleanup  stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:31:14.126 [CMSHikariPool housekeeper] [] HikariPool - CMSHikariPool - Fill pool skipped, pool has sufficient level or currently being filled (queueDepth=0).
+[INFO ] 2026-05-09 22:31:32.223 [SpringApplicationShutdownHook] [] SimpleBrokerMessageHandler - Stopping...
+[INFO ] 2026-05-09 22:31:32.224 [SpringApplicationShutdownHook] [] SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@22405d8c]]
+[INFO ] 2026-05-09 22:31:32.224 [SpringApplicationShutdownHook] [] SimpleBrokerMessageHandler - Stopped.
+[INFO ] 2026-05-09 22:31:32.247 [SpringApplicationShutdownHook] [] LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+[INFO ] 2026-05-09 22:31:32.250 [SpringApplicationShutdownHook] [] HikariDataSource - CMSHikariPool - Shutdown initiated...
+[DEBUG] 2026-05-09 22:31:32.250 [SpringApplicationShutdownHook] [] HikariPool - CMSHikariPool - Before shutdown stats (total=3, active=0, idle=3, waiting=0)
+[DEBUG] 2026-05-09 22:31:32.252 [CMSHikariPool connection closer] [] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@4e671ef: (connection evicted)
+[DEBUG] 2026-05-09 22:31:32.253 [CMSHikariPool connection closer] [] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@df17a37: (connection evicted)
+[DEBUG] 2026-05-09 22:31:32.254 [CMSHikariPool connection closer] [] PoolBase - CMSHikariPool - Closing connection org.postgresql.jdbc.PgConnection@7091147: (connection evicted)
+[DEBUG] 2026-05-09 22:31:32.255 [SpringApplicationShutdownHook] [] HikariPool - CMSHikariPool - After shutdown stats (total=0, active=0, idle=0, waiting=0)
+[INFO ] 2026-05-09 22:31:32.256 [SpringApplicationShutdownHook] [] HikariDataSource - CMSHikariPool - Shutdown completed.

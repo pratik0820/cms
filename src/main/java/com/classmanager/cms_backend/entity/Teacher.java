@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "teachers", indexes = {
@@ -30,17 +32,48 @@ public class Teacher extends BaseEntity {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender")
+    private String gender;
+
     @Column(name = "qualification")
     private String qualification;
 
+    @Column(name = "experience_years")
+    private Integer experienceYears;
+
+    @ElementCollection
+    @CollectionTable(name = "teacher_subjects", joinColumns = @JoinColumn(name = "teacher_id"))
+    @Column(name = "subject", nullable = false)
+    @Builder.Default
+    private List<String> subjects = new ArrayList<>();
+
+    @Column(name = "specialization")
+    private String specialization;
+
     @Column(name = "joining_date")
     private LocalDate joiningDate;
+
+    @Column(name = "employment_type")
+    private String employmentType;
+
+    @Column(name = "salary_type")
+    private String salaryType;
 
     @Column(name = "hourly_rate", nullable = false)
     @Builder.Default
     private BigDecimal hourlyRate = BigDecimal.ZERO;
 
+    @Column(name = "address", length = 2000)
+    private String address;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdByUser;
 }

@@ -20,6 +20,8 @@ This API document is based on:
 - the super admin designs shared in the screenshots
 - the current schema baseline in `src/main/resources/db/migration/V1__super_admin_foundation.sql`
 - the admin management migration in `src/main/resources/db/migration/V2__admin_management.sql`
+- the teacher management migration in `src/main/resources/db/migration/V3__teacher_management.sql`
+- the student management migration in `src/main/resources/db/migration/V4__student_management.sql`
 
 Status labels used in this document:
 - `IMPLEMENTED`: endpoint already exists in backend
@@ -196,6 +198,18 @@ The current codebase has only these super-admin-phase APIs implemented:
 - `PUT /api/super-admin/admins/{adminId}`
 - `PATCH /api/super-admin/admins/{adminId}/status`
 - `DELETE /api/super-admin/admins/{adminId}`
+- `GET /api/super-admin/teachers`
+- `GET /api/super-admin/teachers/{teacherId}`
+- `POST /api/super-admin/teachers`
+- `PUT /api/super-admin/teachers/{teacherId}`
+- `PATCH /api/super-admin/teachers/{teacherId}/status`
+- `DELETE /api/super-admin/teachers/{teacherId}`
+- `GET /api/super-admin/students`
+- `GET /api/super-admin/students/{studentId}`
+- `POST /api/super-admin/students`
+- `PUT /api/super-admin/students/{studentId}`
+- `PATCH /api/super-admin/students/{studentId}/status`
+- `DELETE /api/super-admin/students/{studentId}`
 
 Everything else in this document is the approved contract for the super admin phase and should be implemented next.
 
@@ -1091,7 +1105,7 @@ No payload.
 
 ## 11.1 Teacher List
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/teachers`
 - Auth: `SUPER_ADMIN`
 - Purpose: Fills teacher management table and cards.
@@ -1102,14 +1116,65 @@ No payload.
 |---|---|---:|---|
 | `branchId` | UUID | No | Filters teachers by branch. |
 | `subject` | string | No | Filters by primary subject. |
-| `status` | enum | No | Filters active or inactive teacher accounts. |
+| `isActive` | boolean | No | Filters active or inactive teacher accounts. |
 | `search` | string | No | Searches by name, email, or phone. |
 | `page` | integer | No | Table page index. |
 | `size` | integer | No | Table page size. |
 
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "totalTeachers": 87,
+      "activeTeachers": 78,
+      "inactiveTeachers": 9
+    },
+    "content": [
+      {
+        "id": "f41c35fa-c842-4f9c-a4f4-98fb915ed6d2",
+        "userId": "2c421b28-4f72-41a5-8d87-c6f1d215db76",
+        "fullName": "Neha Patil",
+        "email": "neha.patil@institute.com",
+        "phone": "9876543210",
+        "loginId": "TEA00087",
+        "dateOfBirth": "1990-04-15",
+        "gender": "FEMALE",
+        "profilePhotoUrl": "https://cdn.example.com/teacher.jpg",
+        "qualification": "M.Sc. Mathematics",
+        "experienceYears": 6,
+        "subjects": ["Mathematics", "Physics"],
+        "specialization": "Algebra",
+        "joiningDate": "2026-05-08",
+        "employmentType": "FULL_TIME",
+        "salaryType": "MONTHLY",
+        "hourlyRate": 0,
+        "address": "Pune",
+        "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "branchName": "Main Branch",
+        "isActive": true,
+        "lastLoginAt": null,
+        "createdAt": "2026-05-11T10:30:00",
+        "updatedAt": "2026-05-11T10:30:00"
+      }
+    ],
+    "page": {
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 87,
+      "totalPages": 9,
+      "first": true,
+      "last": false
+    }
+  }
+}
+```
+
 ## 11.2 Create Teacher
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/super-admin/teachers`
 - Auth: `SUPER_ADMIN`
 - Purpose: Creates a teacher account and linked teacher profile.
@@ -1131,7 +1196,7 @@ No payload.
   "joiningDate": "2026-05-08",
   "employmentType": "FULL_TIME",
   "salaryType": "MONTHLY",
-  "hourlyRate": 600,
+  "hourlyRate": 0,
   "loginId": "TEA00087",
   "password": "Password@123",
   "confirmPassword": "Password@123",
@@ -1170,29 +1235,76 @@ No payload.
 2. Create `users` row with role `TEACHER`.
 3. Create `teachers` row linked to `user_id`.
 4. Store branch link and hourly rate.
-5. Persist subjects in a future teacher-subject mapping table.
+5. Persist subjects in `teacher_subjects`.
 6. Return teacher summary payload.
 
 ## 11.3 Teacher Detail
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/teachers/{teacherId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns details for view/edit drawer or page.
+
+### Success Response
+
+The response shape matches `TeacherResponse` from the list and returns the full teacher profile.
 
 ## 11.4 Update Teacher
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `PUT /api/super-admin/teachers/{teacherId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates editable teacher profile fields.
+
+### Request Payload
+
+Same shape as the create teacher payload, except `password` and `confirmPassword` are optional during update.
+
+### Update Rules
+
+- `branchId` is required and must point to an existing branch.
+- if both password fields are omitted, password remains unchanged.
+- if one password field is provided, both must match.
+- email and login ID must remain unique across non-deleted users.
 
 ## 11.5 Change Teacher Status
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `PATCH /api/super-admin/teachers/{teacherId}/status`
+- Auth: `SUPER_ADMIN`
+- Purpose: Activates or deactivates a teacher account.
+
+### Request Payload
+
+```json
+{
+  "isActive": false,
+  "reason": "Left organization"
+}
+```
+
+## 11.6 Delete Teacher
+
+- Status: `IMPLEMENTED`
+- Endpoint: `DELETE /api/super-admin/teachers/{teacherId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Soft deletes a teacher account and linked user account.
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Teacher deleted successfully",
+  "data": null
+}
+```
 
 ## 12. Student Management APIs
 
 ## 12.1 Student List
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/students`
 - Auth: `SUPER_ADMIN`
 - Purpose: Fills student management table and top cards.
@@ -1204,14 +1316,68 @@ No payload.
 | `branchId` | UUID | No | Filters by branch. |
 | `standard` | string | No | Filters by class or standard. |
 | `batch` | string | No | Filters by batch or section once mapped. |
-| `status` | enum | No | Filters active or inactive students. |
-| `search` | string | No | Searches by student name, parent name, mobile, or student ID. |
+| `isActive` | boolean | No | Filters active or inactive students. |
+| `search` | string | No | Searches by student name, student ID, mobile, email, parent name, parent phone, or login ID. |
 | `page` | integer | No | Table page index. |
 | `size` | integer | No | Table page size. |
 
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "totalStudents": 2453,
+      "activeStudents": 2286,
+      "inactiveStudents": 167,
+      "totalBranches": 2,
+      "activeBranches": 2
+    },
+    "content": [
+      {
+        "id": "6f75e8c9-c492-442a-8f06-84de5e040c07",
+        "userId": "2c421b28-4f72-41a5-8d87-c6f1d215db76",
+        "fullName": "Aarav Sharma",
+        "studentId": "STU240001",
+        "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "branchName": "Main Branch",
+        "standard": "9th",
+        "batch": "9th CBSE A",
+        "gender": "MALE",
+        "dateOfBirth": "2011-03-27",
+        "mobile": "9876543210",
+        "parentName": "Rajesh Sharma",
+        "parentPhone": "9876543211",
+        "email": "aarav@example.com",
+        "address": "Pune",
+        "schoolName": "Greenfield Public School",
+        "board": "CBSE",
+        "admissionDate": "2026-05-08",
+        "loginId": "stu240001",
+        "profilePhotoUrl": "https://cdn.example.com/student.jpg",
+        "isAdmissionFinal": true,
+        "isActive": true,
+        "lastLoginAt": null,
+        "createdAt": "2026-05-11T10:45:00",
+        "updatedAt": "2026-05-11T10:45:00"
+      }
+    ],
+    "page": {
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 2453,
+      "totalPages": 246,
+      "first": true,
+      "last": false
+    }
+  }
+}
+```
+
 ## 12.2 Create Student
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/super-admin/students`
 - Auth: `SUPER_ADMIN`
 - Purpose: Creates student record and future student login.
@@ -1256,7 +1422,7 @@ No payload.
 | `mobile` | string | Yes | Student or primary contact number. |
 | `parentName` | string | Yes | Guardian name shown in list and communication flows. |
 | `parentPhone` | string | Yes | Guardian contact for outreach and future parent portal. |
-| `email` | string | No | Optional student or guardian email contact. |
+| `email` | string | No | Optional student or guardian email contact. Student login can use `loginId` when email is absent. |
 | `address` | string | No | Contact detail shown in detail views. |
 | `schoolName` | string | No | Needed because admission designs capture prior or current school. |
 | `board` | string | Yes | Academic board, aligned with schema check values. |
@@ -1269,25 +1435,57 @@ No payload.
 ### Backend Implementation Steps
 
 1. Validate branch and board value.
-2. Create `users` account with role `STUDENT`.
+2. Create `users` account with role `STUDENT`. Email is optional for future parent/student login flows; `loginId` is required.
 3. Create `students` row linked by `user_id`.
 4. Mark active and current admission state.
 5. Return student summary response.
 
 ## 12.3 Student Detail
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/students/{studentId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns details for view/edit drawer or page.
+
+### Success Response
+
+The response shape matches `StudentResponse` from the list and returns the full student profile.
 
 ## 12.4 Update Student
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `PUT /api/super-admin/students/{studentId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates editable student profile fields.
+
+### Request Payload
+
+Same shape as the create student payload, except `password` and `confirmPassword` are optional during update.
+
+### Update Rules
+
+- `branchId` is required and must point to an existing branch.
+- `studentId` must be unique across non-deleted students.
+- `loginId` must be unique across non-deleted users.
+- `email` is optional, but if present it must be unique across non-deleted users.
+- if both password fields are omitted, password remains unchanged.
+- if one password field is provided, both must match.
 
 ## 12.5 Change Student Status
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `PATCH /api/super-admin/students/{studentId}/status`
+- Auth: `SUPER_ADMIN`
+- Purpose: Activates or deactivates a student account.
+
+### Request Payload
+
+```json
+{
+  "isActive": false,
+  "reason": "Transferred to another institute"
+}
+```
 
 ## 12.6 Bulk Import Students
 
@@ -1935,6 +2133,19 @@ Admin management is now implemented using:
 - `admin_profiles` for admin-only profile fields like date of birth, gender, joining date, access level, address, and all-branches access
 - `operational_records` for create, update, activate, deactivate, and delete activity entries
 
+Teacher management is now implemented using:
+- `users` for login identity, status, login tracking, profile photo, and branch link
+- `teachers` for teacher-only profile fields like date of birth, gender, qualification, experience, specialization, joining date, employment type, salary type, hourly rate, and address
+- `teacher_subjects` for multi-subject storage and subject filtering
+- `operational_records` for create, update, activate, deactivate, and delete activity entries
+
+Student management is now implemented using:
+- `users` for login identity, status, login tracking, profile photo, and branch link
+- nullable `users.email` so future parent/student login flows can use `loginId` without forcing an email address
+- `students` for student-only profile fields like student ID, standard, batch, parent contact, school, board, admission date, and admission status
+- `StudentManagementService` as shared business logic so future admin and teacher controllers can reuse the same student management rules with role-specific branch and permission checks
+- `operational_records` for create, update, activate, deactivate, and delete activity entries
+
 Branch management is now implemented using:
 - the existing `branches` table from the foundation migration
 - branch-level aggregates from `students`, `teachers`, and branch-scoped `ADMIN` users
@@ -1953,7 +2164,6 @@ Recommended future dedicated tables for cleaner module APIs:
 - leads
 - admissions
 - admin_profiles
-- teacher_subjects
 - classes or batches
 - tests
 - test_questions

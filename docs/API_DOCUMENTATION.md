@@ -22,6 +22,8 @@ This API document is based on:
 - the admin management migration in `src/main/resources/db/migration/V2__admin_management.sql`
 - the teacher management migration in `src/main/resources/db/migration/V3__teacher_management.sql`
 - the student management migration in `src/main/resources/db/migration/V4__student_management.sql`
+- the analytics support migration in `src/main/resources/db/migration/V5__analytics_support.sql`
+- the reports management migration in `src/main/resources/db/migration/V6__reports_management.sql`
 
 Status labels used in this document:
 - `IMPLEMENTED`: endpoint already exists in backend
@@ -210,6 +212,13 @@ The current codebase has only these super-admin-phase APIs implemented:
 - `PUT /api/super-admin/students/{studentId}`
 - `PATCH /api/super-admin/students/{studentId}/status`
 - `DELETE /api/super-admin/students/{studentId}`
+- `GET /api/super-admin/analytics`
+- `GET /api/super-admin/reports/summary`
+- `GET /api/super-admin/reports/categories`
+- `GET /api/super-admin/reports`
+- `POST /api/super-admin/reports/export`
+- `GET /api/super-admin/reports/{reportId}/download`
+- `DELETE /api/super-admin/reports/{reportId}`
 
 Everything else in this document is the approved contract for the super admin phase and should be implemented next.
 
@@ -1621,41 +1630,283 @@ The admission payload should reuse student and guardian fields from lead capture
 
 ## 14.1 Analytics Overview
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/analytics`
 - Auth: `SUPER_ADMIN`
-- Purpose: Fills analytics screen with cards, tabs, and charts.
+- Purpose: Fills the Analytics Overview and Analytics Students screens with cards, tabs, and chart-ready data.
 
 ### Query Parameters
 
 | Field | Type | Required | Purpose |
 |---|---|---:|---|
-| `tab` | enum | No | Controls current analytics tab such as overview, students, teachers, attendance, academics, finance, admissions, performance, or feedback. |
+| `tab` | enum | No | Controls current analytics tab. Currently implemented values are `overview` and `students`. Other tab labels are returned for UI navigation but their detailed datasets are planned. |
 | `branchId` | UUID | No | Optional branch filter. |
-| `fromDate` | date | No | Lower reporting bound. |
-| `toDate` | date | No | Upper reporting bound. |
+| `fromDate` | date | No | Lower reporting bound. Defaults to the first day of the `toDate` year. |
+| `toDate` | date | No | Upper reporting bound. Defaults to current date. |
+
+### Overview Tab Request
+
+```http
+GET /api/super-admin/analytics?tab=overview&fromDate=2026-05-01&toDate=2026-05-14
+```
+
+### Overview Tab Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "fromDate": "2026-05-01",
+    "toDate": "2026-05-14",
+    "branchId": null,
+    "branchName": "All Branches",
+    "activeTab": "overview",
+    "branches": [
+      {
+        "id": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+        "name": "Main Branch"
+      }
+    ],
+    "tabs": [
+      { "key": "overview", "label": "Overview" },
+      { "key": "students", "label": "Students" },
+      { "key": "teachers", "label": "Teachers" },
+      { "key": "attendance", "label": "Attendance" },
+      { "key": "academics", "label": "Academics" },
+      { "key": "finance", "label": "Finance" },
+      { "key": "admissions", "label": "Admissions" },
+      { "key": "performance", "label": "Performance" },
+      { "key": "feedback", "label": "Feedback" }
+    ],
+    "overview": {
+      "cards": [
+        {
+          "key": "totalStudents",
+          "label": "Total Students",
+          "totalCount": 2453,
+          "changePercentage": 12.50,
+          "comparisonLabel": "vs last month",
+          "trendDirection": "up"
+        },
+        {
+          "key": "feesCollected",
+          "label": "Fees Collected",
+          "totalAmount": 4875000,
+          "changePercentage": 18.60,
+          "comparisonLabel": "vs previous period",
+          "trendDirection": "up"
+        }
+      ],
+      "studentGrowth": [
+        {
+          "month": "Jan",
+          "currentValue": 700,
+          "previousValue": 420
+        }
+      ],
+      "feeCollectionOverview": [
+        {
+          "month": "May",
+          "feesCollected": 4875000,
+          "pendingFees": 875600
+        }
+      ],
+      "leadConversionFunnel": {
+        "stages": [
+          {
+            "label": "Total Leads",
+            "count": 1250,
+            "percentage": 100.00
+          },
+          {
+            "label": "Interested",
+            "count": 650,
+            "percentage": 52.00
+          },
+          {
+            "label": "Converted",
+            "count": 320,
+            "percentage": 25.60
+          },
+          {
+            "label": "Admissions",
+            "count": 285,
+            "percentage": 22.80
+          }
+        ]
+      },
+      "admissionsOverview": {
+        "totalAdmissions": 285,
+        "branches": [
+          {
+            "label": "Main Branch",
+            "count": 162,
+            "percentage": 56.84
+          }
+        ],
+        "conversionRate": 22.80,
+        "inquiryToAdmissionRate": 22.80
+      }
+    }
+  }
+}
+```
+
+### Students Tab Request
+
+```http
+GET /api/super-admin/analytics?tab=students&fromDate=2026-05-01&toDate=2026-05-14
+```
+
+### Students Tab Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "fromDate": "2026-05-01",
+    "toDate": "2026-05-14",
+    "branchId": null,
+    "branchName": "All Branches",
+    "activeTab": "students",
+    "students": {
+      "cards": [
+        {
+          "key": "totalStudents",
+          "label": "Total Students",
+          "totalCount": 2453,
+          "changePercentage": 12.50,
+          "comparisonLabel": "vs last month",
+          "trendDirection": "up"
+        },
+        {
+          "key": "activeStudents",
+          "label": "Active Students",
+          "totalCount": 2286,
+          "sharePercentage": 93.19,
+          "shareLabel": "of total",
+          "trendDirection": "neutral"
+        }
+      ],
+      "studentGrowth": [
+        {
+          "month": "Jan",
+          "currentValue": 700,
+          "previousValue": 420
+        }
+      ],
+      "studentsByClass": {
+        "total": 2453,
+        "segments": [
+          {
+            "label": "9th",
+            "count": 360,
+            "percentage": 14.68
+          }
+        ]
+      },
+      "studentsByGender": {
+        "total": 2453,
+        "segments": [
+          {
+            "label": "MALE",
+            "count": 1296,
+            "percentage": 52.83
+          },
+          {
+            "label": "FEMALE",
+            "count": 1157,
+            "percentage": 47.17
+          }
+        ]
+      },
+      "admissionsVsDropped": [
+        {
+          "month": "May",
+          "newAdmissions": 245,
+          "droppedStudents": 36
+        }
+      ]
+    }
+  }
+}
+```
 
 ### Backend Implementation Steps
 
-1. Reuse dashboard aggregations where possible.
-2. Add tab-specific metrics only for visible design cards and charts.
-3. Return data sectioned by active tab.
+1. Resolve branch and date filters.
+2. Return active branch options for header filters.
+3. Return tab metadata for the visible analytics navigation.
+4. For `overview`, aggregate student, teacher, admin, fee, lead conversion, and admission data.
+5. For `students`, aggregate active/inactive students, new admissions, dropped students, class distribution, gender distribution, and admission/drop monthly series.
+6. Use `students`, `teachers`, `users`, and `operational_records`.
+7. Use `admission_date` for admission analytics instead of row creation time.
+8. Return one consolidated response for the active tab.
 
 ## 15. Reports APIs
 
 ## 15.1 Reports Summary
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/reports/summary`
 - Auth: `SUPER_ADMIN`
 - Purpose: Fills report dashboard cards and category tiles.
 
-## 15.2 Reports List
+### Query Parameters
 
-- Status: `PLANNED`
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `branchId` | UUID | No | Optional branch filter. |
+| `fromDate` | date | No | Lower reporting bound. Defaults to first day of current month. |
+| `toDate` | date | No | Upper reporting bound. Defaults to current date. |
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "fromDate": "2026-05-01",
+    "toDate": "2026-05-14",
+    "summary": {
+      "totalStudents": 2453,
+      "totalTeachers": 87,
+      "totalAdmissions": 245,
+      "feesCollected": 4875000,
+      "pendingFees": 875600
+    },
+    "categories": [
+      {
+        "key": "student_reports",
+        "label": "Student Reports",
+        "description": "View and download student related reports",
+        "reportTypes": [
+          {
+            "key": "student_admission_report",
+            "label": "Student Admission Report",
+            "defaultFormat": "PDF"
+          }
+        ]
+      }
+    ],
+    "recentReports": []
+  }
+}
+```
+
+## 15.2 Report Categories
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/reports/categories`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns category cards and report type options for filters/export dropdowns.
+
+## 15.3 Reports List
+
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/reports`
 - Auth: `SUPER_ADMIN`
-- Purpose: Returns report rows for the reports table.
+- Purpose: Returns generated report rows for the reports table.
 
 ### Query Parameters
 
@@ -1663,27 +1914,71 @@ The admission payload should reuse student and guardian fields from lead capture
 |---|---|---:|---|
 | `category` | string | No | Filters student, teacher, attendance, academic, admission, or exam reports. |
 | `reportType` | string | No | Narrows to specific report type. |
+| `format` | string | No | Filters generated report format. |
+| `branchId` | UUID | No | Filters generated reports by branch. |
+| `search` | string | No | Searches report name or description. |
 | `fromDate` | date | No | Start date for report filter. |
 | `toDate` | date | No | End date for report filter. |
 | `page` | integer | No | Table page index. |
 | `size` | integer | No | Table page size. |
 
-## 15.3 Export Report
+### Success Response
 
-- Status: `PLANNED`
+```json
+{
+  "success": true,
+  "data": {
+    "content": [
+      {
+        "id": "6f75e8c9-c492-442a-8f06-84de5e040c07",
+        "reportName": "Student Admission Report",
+        "category": "student_reports",
+        "categoryLabel": "Student Reports",
+        "reportType": "student_admission_report",
+        "reportTypeLabel": "Student Admission Report",
+        "description": "View and download student related reports",
+        "generatedBy": "Super Admin",
+        "generatedOn": "2026-05-14T10:30:00",
+        "format": "PDF",
+        "status": "READY",
+        "branchId": null,
+        "branchName": "All Branches",
+        "fromDate": "2026-05-01",
+        "toDate": "2026-05-14",
+        "downloadUrl": "/api/super-admin/reports/6f75e8c9-c492-442a-8f06-84de5e040c07/download"
+      }
+    ],
+    "page": {
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 1,
+      "totalPages": 1,
+      "first": true,
+      "last": true
+    }
+  }
+}
+```
+
+## 15.4 Export Report
+
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/super-admin/reports/export`
 - Auth: `SUPER_ADMIN`
-- Purpose: Generates export file for selected report.
+- Purpose: Generates a report metadata record and returns a download URL.
 
 ### Request Payload
 
 ```json
 {
-  "reportType": "STUDENT_ATTENDANCE_REPORT",
+  "category": "student_reports",
+  "reportType": "student_admission_report",
   "format": "PDF",
   "branchId": null,
   "fromDate": "2026-05-01",
-  "toDate": "2026-05-31"
+  "toDate": "2026-05-14",
+  "standard": "9th",
+  "batch": "9th CBSE A"
 }
 ```
 
@@ -1691,11 +1986,74 @@ The admission payload should reuse student and guardian fields from lead capture
 
 | Field | Type | Required | Purpose |
 |---|---|---:|---|
+| `category` | string | Yes | Report category, such as `student_reports`, `teacher_reports`, `attendance_reports`, `academic_reports`, `admission_reports`, `exam_reports`, or `financial_reports`. |
 | `reportType` | string | Yes | Identifies which dataset should be exported. |
-| `format` | string | Yes | Specifies output format such as PDF or Excel. |
+| `format` | string | No | Specifies output format. Supported values are `PDF`, `CSV`, and `EXCEL`; `EXCEL` currently streams CSV-compatible bytes. |
 | `branchId` | UUID | No | Optional branch-scope export. |
 | `fromDate` | date | No | Lower date filter for report generation. |
 | `toDate` | date | No | Upper date filter for report generation. |
+| `standard` | string | No | Future-compatible student filter captured in `filters_json`. |
+| `batch` | string | No | Future-compatible student filter captured in `filters_json`. |
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Report generated successfully",
+  "data": {
+    "id": "6f75e8c9-c492-442a-8f06-84de5e040c07",
+    "reportName": "Student Admission Report",
+    "category": "student_reports",
+    "reportType": "student_admission_report",
+    "format": "PDF",
+    "status": "READY",
+    "downloadUrl": "/api/super-admin/reports/6f75e8c9-c492-442a-8f06-84de5e040c07/download"
+  }
+}
+```
+
+## 15.5 Download Report
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/super-admin/reports/{reportId}/download`
+- Auth: `SUPER_ADMIN`
+- Purpose: Streams the generated report file to the browser as an attachment.
+
+### Response
+
+Returns binary file bytes with:
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="student_admission_report-2026-05-14.pdf"
+```
+
+For `CSV` or `EXCEL`, the API returns `text/csv` content. This is intentional for the first backend version because CSV opens directly in Excel and does not require adding a spreadsheet-generation dependency.
+
+## 15.6 Delete Report
+
+- Status: `IMPLEMENTED`
+- Endpoint: `DELETE /api/super-admin/reports/{reportId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Soft deletes a generated report metadata record.
+
+## 15.7 Report Storage Strategy
+
+Recommended production strategy:
+
+- Generate small interactive reports synchronously and stream them directly from `GET /download`.
+- Store metadata in `generated_reports` for audit/history, filters, generated-by user, format, branch, and future retry/download behavior.
+- Store large or long-lived generated files in S3 and keep only `storage_provider`, `storage_key`, `download_url`, and expiry metadata in PostgreSQL.
+- Avoid storing large report binaries in PostgreSQL unless the files are tiny and retention requirements are short.
+- Use async/background generation later for large reports, changing `status` from `QUEUED` to `PROCESSING` to `READY` or `FAILED`.
+
+Current implementation:
+
+- Uses `generated_reports` metadata records.
+- Uses `storage_provider=ON_DEMAND`.
+- Regenerates and streams the file from source data when `/download` is called.
+- Supports PDF and CSV-compatible downloads without adding new third-party file-generation libraries.
 
 ## 16. Feedback APIs
 
@@ -2125,6 +2483,7 @@ Current schema already provides these foundations:
 - `admin_profiles`
 - `teachers`
 - `students`
+- `generated_reports`
 - `refresh_tokens`
 - `operational_records`
 
@@ -2145,6 +2504,18 @@ Student management is now implemented using:
 - `students` for student-only profile fields like student ID, standard, batch, parent contact, school, board, admission date, and admission status
 - `StudentManagementService` as shared business logic so future admin and teacher controllers can reuse the same student management rules with role-specific branch and permission checks
 - `operational_records` for create, update, activate, deactivate, and delete activity entries
+
+Analytics is now implemented using:
+- `students` for total, active, inactive, class, gender, admission-date, and growth metrics
+- `teachers` and role-scoped `users` for overview card totals
+- `operational_records` for fee, pending fee, lead funnel, and dropped-student event analytics
+- `V5__analytics_support.sql` indexes for operational-record module/status/type lookups and branch/date analytics queries
+
+Reports are now implemented using:
+- `generated_reports` for generated report metadata, filters, generated-by user, date range, branch scope, format, status, and future storage pointers
+- source tables such as `students`, `teachers`, `users`, and `operational_records` to regenerate report bytes on demand
+- `storage_provider=ON_DEMAND` for current synchronous downloads
+- `storage_provider=S3` and `storage_key` later for large or persistent report files
 
 Branch management is now implemented using:
 - the existing `branches` table from the foundation migration

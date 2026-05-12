@@ -39,13 +39,13 @@ public interface TeacherRepository extends JpaRepository<Teacher, UUID> {
               and u.isDeleted = false
               and (:branchId is null or b.id = :branchId)
               and (:isActive is null or t.isActive = :isActive)
-              and (:subject is null or lower(s) = lower(:subject))
+              and (cast(:subject as string) is null or lower(s) = lower(cast(:subject as string)))
               and (
-                    :searchPattern is null
-                    or lower(t.name) like :searchPattern
-                    or lower(t.email) like :searchPattern
-                    or lower(coalesce(t.phone, '')) like :searchPattern
-                    or lower(coalesce(u.loginId, '')) like :searchPattern
+                    cast(:searchPattern as string) is null
+                    or lower(t.name) like cast(:searchPattern as string)
+                    or lower(t.email) like cast(:searchPattern as string)
+                    or lower(coalesce(t.phone, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(cast(u.loginId as string), '')) like cast(:searchPattern as string)
               )
             """)
     Page<Teacher> searchTeachers(@Param("searchPattern") String searchPattern,

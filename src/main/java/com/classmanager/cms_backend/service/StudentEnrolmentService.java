@@ -48,7 +48,7 @@ public class StudentEnrolmentService {
         Student student = studentRepository.findByIdAndIsDeletedFalse(request.getStudentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student", request.getStudentId()));
 
-        Batch batch = batchRepository.findByIdAndIsDeletedFalse(request.getBatchId())
+        Batch batch = batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(request.getBatchId())
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", request.getBatchId()));
 
         // Prevent duplicate active enrolment in the same batch
@@ -63,7 +63,9 @@ public class StudentEnrolmentService {
         SubjectGroup subjectGroup = null;
         if (request.getSubjectGroupId() != null) {
             subjectGroup = batch.getCourse().getSubjectGroups().stream()
-                    .filter(sg -> sg.getId().equals(request.getSubjectGroupId()) && !sg.isDeleted())
+                    .filter(sg -> sg.getId().equals(request.getSubjectGroupId())
+                            && !sg.isDeleted()
+                            && Boolean.TRUE.equals(sg.getIsActive()))
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException("SubjectGroup", request.getSubjectGroupId()));
         }
@@ -141,7 +143,9 @@ public class StudentEnrolmentService {
 
         if (request.getSubjectGroupId() != null) {
             SubjectGroup sg = enrolment.getBatch().getCourse().getSubjectGroups().stream()
-                    .filter(g -> g.getId().equals(request.getSubjectGroupId()) && !g.isDeleted())
+                    .filter(g -> g.getId().equals(request.getSubjectGroupId())
+                            && !g.isDeleted()
+                            && Boolean.TRUE.equals(g.getIsActive()))
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException("SubjectGroup", request.getSubjectGroupId()));
             enrolment.setSubjectGroup(sg);
@@ -182,7 +186,7 @@ public class StudentEnrolmentService {
     private List<Subject> resolveSubjects(List<UUID> subjectIds) {
         List<Subject> subjects = new ArrayList<>();
         for (UUID id : subjectIds) {
-            subjects.add(subjectRepository.findByIdAndIsDeletedFalse(id)
+            subjects.add(subjectRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Subject", id)));
         }
         return subjects;

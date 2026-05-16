@@ -17,13 +17,21 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
 
     List<Course> findByIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc();
 
+    List<Course> findByStandardAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(String standard);
+
     List<Course> findByBoardAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(BoardType board);
 
+    List<Course> findByBoardAndStandardAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(BoardType board, String standard);
+
     List<Course> findByCategoryAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(CourseCategory category);
+
+    List<Course> findByCategoryAndStandardAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(CourseCategory category, String standard);
 
     Optional<Course> findByCodeAndIsDeletedFalse(String code);
 
     Optional<Course> findByIdAndIsDeletedFalse(UUID id);
+
+    Optional<Course> findByIdAndIsActiveTrueAndIsDeletedFalse(UUID id);
 
     boolean existsByCodeAndIsDeletedFalse(String code);
 

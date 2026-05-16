@@ -1,14 +1,9 @@
-package com.classmanager.cms_backend.dto.response;
+package com.classmanager.cms_backend.dto.request;
 
-import lombok.Builder;
 import lombok.Data;
 
-import java.util.UUID;
-
 @Data
-@Builder
-public class SubjectResponse {
-    private UUID id;
+public class UpdateSubjectRequest {
     private String code;
     private String displayName;
     private String shortName;

@@ -223,8 +223,14 @@ The current codebase has only these super-admin-phase APIs implemented:
 - `GET /api/super-admin/reports/{reportId}/download`
 - `DELETE /api/super-admin/reports/{reportId}`
 - `GET /api/courses/subjects`
+- `POST /api/courses/subjects`
+- `PUT /api/courses/subjects/{subjectId}`
+- `DELETE /api/courses/subjects/{subjectId}`
 - `GET /api/courses`
+- `POST /api/courses`
 - `GET /api/courses/{courseId}`
+- `PUT /api/courses/{courseId}`
+- `DELETE /api/courses/{courseId}`
 - `POST /api/batches`
 - `GET /api/batches`
 - `GET /api/batches/by-branch/{branchId}`
@@ -2871,6 +2877,66 @@ Branch
 
 ---
 
+Additional note:
+
+- `code` should now be treated as a stable string key, not a closed enum. Seeded values remain valid, and admins can add new subject codes through the create subject API.
+
+#### API: Create Subject
+
+- Status: `IMPLEMENTED`
+- Purpose: Add a new reusable subject to the global master catalogue
+- Endpoint: `POST /api/courses/subjects`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Example Request:**
+
+```json
+{
+  "code": "ROBOTICS",
+  "displayName": "Robotics",
+  "shortName": "Robotics",
+  "description": "Add-on robotics subject",
+  "sortOrder": 25,
+  "isActive": true
+}
+```
+
+**Behavior:**
+
+- `code` is normalized to uppercase with underscores before saving
+- `code` must be unique across all non-deleted subjects
+- newly added subjects become available immediately in active course subject groups, teacher subject mapping, leads, and enrolments
+
+---
+
+#### API: Update Subject
+
+- Status: `IMPLEMENTED`
+- Purpose: Rename, recode, reorder, or activate/deactivate an existing subject
+- Endpoint: `PUT /api/courses/subjects/{subjectId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+All fields are optional; only provided fields are updated.
+
+---
+
+#### API: Delete Subject
+
+- Status: `IMPLEMENTED`
+- Purpose: Soft-delete a subject from future active catalogue selection
+- Endpoint: `DELETE /api/courses/subjects/{subjectId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Behavior:**
+
+- deleted subjects stop appearing in active subject and course-detail pickers
+- historical teacher, lead, and enrolment records keep their existing links
+
+---
+
 ### 4.6.2 Course APIs
 
 #### API: List All Courses
@@ -2889,6 +2955,10 @@ Branch
 | `category` | String (enum) | No | Filter by category: `BOARD_REGULAR`, `FOUNDATION`, `BOARD_SENIOR`, `COMPETITIVE`, `COMBINED` |
 
 If neither `board` nor `category` is provided, all active courses are returned.
+
+Additional query support:
+
+- `standard` is also supported now, so frontend flows like `GET /api/courses?board=CBSE&standard=8` match the actual backend behavior.
 
 **Response:**
 
@@ -2928,6 +2998,50 @@ If neither `board` nor `category` is provided, all active courses are returned.
 | `subjectGroups` | null | Not included in list view â€” use the detail endpoint to get subject groups |
 
 - Where to use: Batch creation form (step 1: pick a course), student enrolment form
+
+---
+
+#### API: Create Course
+
+- Status: `IMPLEMENTED`
+- Purpose: Add a new course to the master catalogue with optional subject groups
+- Endpoint: `POST /api/courses`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Example Request:**
+
+```json
+{
+  "name": "Std. 8th CBSE Weekend Batch",
+  "code": "CBSE-8-WEEKEND",
+  "category": "BOARD_REGULAR",
+  "board": "CBSE",
+  "standard": "8",
+  "academicYear": null,
+  "description": "Weekend catalogue variant",
+  "sortOrder": 45,
+  "isActive": true,
+  "subjectGroups": [
+    {
+      "name": "Core Trio",
+      "shortName": "Core",
+      "subjectIds": ["maths-uuid", "science-uuid", "english-uuid"],
+      "isExtraSubjectAllowed": true,
+      "maxExtraSubjects": 2,
+      "allowedExtraSubjectIds": ["language-uuid", "sst-uuid"],
+      "sortOrder": 1,
+      "isActive": true
+    }
+  ]
+}
+```
+
+**Behavior:**
+
+- `code` is normalized to uppercase with underscores before saving
+- `subjectGroups` is optional
+- only active, non-deleted subject IDs can be attached to a subject group
 
 ---
 
@@ -3063,6 +3177,38 @@ If neither `board` nor `category` is provided, all active courses are returned.
 5. The final checked subjects become `subjectIds[]` in the enrolment request
 
 - Where to use: Student enrolment form (step: select subjects), batch creation context
+
+---
+
+#### API: Update Course
+
+- Status: `IMPLEMENTED`
+- Purpose: Change course metadata or replace its subject group configuration
+- Endpoint: `PUT /api/courses/{courseId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Behavior:**
+
+- non-null scalar fields update course metadata
+- when `subjectGroups` is included, the full course subject-group configuration is replaced
+- updated groups become the new source of truth for future enrolment subject pickers
+
+---
+
+#### API: Delete Course
+
+- Status: `IMPLEMENTED`
+- Purpose: Soft-delete a course from future catalogue selection
+- Endpoint: `DELETE /api/courses/{courseId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Behavior:**
+
+- the course is marked inactive and soft-deleted
+- old batches and historical records still retain their course link
+- deleted courses are hidden from active course dropdowns
 
 ---
 
@@ -3609,6 +3755,11 @@ The `subjectGroupId` is purely informational â€” it records which group the
 ### 4.6.6 Seeded Master Data
 
 The following data is pre-seeded in `V7__courses_batches_enrolments.sql` and is available immediately after the first application startup.
+These are starter defaults only. The live catalogue can now be extended later through:
+
+- `POST /api/courses/subjects`
+- `POST /api/courses`
+- `POST /api/batches`
 
 **Courses:**
 

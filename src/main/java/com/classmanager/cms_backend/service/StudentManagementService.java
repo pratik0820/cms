@@ -272,7 +272,7 @@ public class StudentManagementService {
         if (batchId == null) {
             return null;
         }
-        Batch batch = batchRepository.findByIdAndIsDeletedFalse(batchId)
+        Batch batch = batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId));
         if (!batch.getBranch().getId().equals(branchId)) {
             throw new BadRequestException("Selected batch does not belong to the selected branch", "BATCH_BRANCH_MISMATCH");
@@ -364,7 +364,7 @@ public class StudentManagementService {
                     "ENROLMENT_SELECTION_INCOMPLETE");
         }
         if (request.getCourseId() != null) {
-            Batch batch = batchRepository.findByIdAndIsDeletedFalse(request.getBatchId())
+            Batch batch = batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(request.getBatchId())
                     .orElseThrow(() -> new ResourceNotFoundException("Batch", request.getBatchId()));
             if (!batch.getCourse().getId().equals(request.getCourseId())) {
                 throw new BadRequestException("Selected batch does not belong to the selected course", "BATCH_COURSE_MISMATCH");

@@ -28,6 +28,8 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
     Optional<Batch> findByIdAndIsDeletedFalse(UUID id);
 
+    Optional<Batch> findByIdAndIsActiveTrueAndIsDeletedFalse(UUID id);
+
     long countByBranch_IdAndIsActiveTrueAndIsDeletedFalse(UUID branchId);
 
     @Query("""

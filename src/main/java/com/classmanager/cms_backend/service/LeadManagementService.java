@@ -438,13 +438,13 @@ public class LeadManagementService {
 
     private Course resolveCourse(UUID courseId) {
         if (courseId == null) return null;
-        return courseRepository.findByIdAndIsDeletedFalse(courseId)
+        return courseRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course", courseId));
     }
 
     private Batch resolveBatch(UUID batchId) {
         if (batchId == null) return null;
-        return batchRepository.findByIdAndIsDeletedFalse(batchId)
+        return batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId));
     }
 
@@ -453,7 +453,7 @@ public class LeadManagementService {
             return List.of();
         }
         return subjectIds.stream()
-                .map(id -> subjectRepository.findByIdAndIsDeletedFalse(id)
+                .map(id -> subjectRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(id)
                         .orElseThrow(() -> new ResourceNotFoundException("Subject", id)))
                 .toList();
     }

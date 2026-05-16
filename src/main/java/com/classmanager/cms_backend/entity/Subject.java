@@ -1,13 +1,12 @@
 package com.classmanager.cms_backend.entity;
 
-import com.classmanager.cms_backend.enums.SubjectCode;
 import jakarta.persistence.*;
 import lombok.*;
 
 /**
  * Master subject catalogue.
- * {@code code} is the canonical enum value; {@code displayName} is the
- * human-readable label shown in the UI (admin can rename without touching code).
+ * {@code code} is a stable catalog identifier; {@code displayName} is the
+ * human-readable label shown in the UI.
  */
 @Entity
 @Table(name = "subjects", indexes = {
@@ -20,9 +19,8 @@ import lombok.*;
 @Builder
 public class Subject extends BaseEntity {
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "code", nullable = false, length = 40, unique = true)
-    private SubjectCode code;
+    private String code;
 
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;

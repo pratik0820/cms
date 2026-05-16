@@ -329,7 +329,7 @@ public class SuperAdminTeacherService {
         }
         return subjectIds.stream()
                 .distinct()
-                .map(subjectId -> subjectRepository.findByIdAndIsDeletedFalse(subjectId)
+                .map(subjectId -> subjectRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(subjectId)
                         .orElseThrow(() -> new ResourceNotFoundException("Subject", subjectId)))
                 .toList();
     }

@@ -42,7 +42,7 @@ public class BatchService {
         Branch branch = branchRepository.findByIdAndIsDeletedFalse(request.getBranchId())
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", request.getBranchId()));
 
-        Course course = courseRepository.findByIdAndIsDeletedFalse(request.getCourseId())
+        Course course = courseRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Course", request.getCourseId()));
 
         if (request.getTiming() == BatchTiming.CUSTOM && !StringUtils.hasText(request.getTimingLabel())) {

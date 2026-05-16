@@ -42,10 +42,12 @@ public class SuperAdminTeacherController extends BaseController {
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String subject,
+            @RequestParam(required = false) UUID subjectId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        TeacherManagementResponse response = superAdminTeacherService.getTeachers(search, isActive, branchId, subject, page, size);
+        TeacherManagementResponse response = superAdminTeacherService.getTeachers(
+                search, isActive, branchId, subject, subjectId, page, size);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

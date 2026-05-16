@@ -24,6 +24,9 @@ This API document is based on:
 - the student management migration in `src/main/resources/db/migration/V4__student_management.sql`
 - the analytics support migration in `src/main/resources/db/migration/V5__analytics_support.sql`
 - the reports management migration in `src/main/resources/db/migration/V6__reports_management.sql`
+- the courses, batches, and enrolments migration in `src/main/resources/db/migration/V7__courses_batches_enrolments.sql`
+- the lead management migration in `src/main/resources/db/migration/V8__lead_management.sql`
+- the teacher/student catalogue alignment migration in `src/main/resources/db/migration/V9__teacher_student_catalog_alignment.sql`
 
 Status labels used in this document:
 - `IMPLEMENTED`: endpoint already exists in backend
@@ -219,6 +222,29 @@ The current codebase has only these super-admin-phase APIs implemented:
 - `POST /api/super-admin/reports/export`
 - `GET /api/super-admin/reports/{reportId}/download`
 - `DELETE /api/super-admin/reports/{reportId}`
+- `GET /api/courses/subjects`
+- `GET /api/courses`
+- `GET /api/courses/{courseId}`
+- `POST /api/batches`
+- `GET /api/batches`
+- `GET /api/batches/by-branch/{branchId}`
+- `GET /api/batches/{batchId}`
+- `PUT /api/batches/{batchId}`
+- `DELETE /api/batches/{batchId}`
+- `POST /api/enrolments`
+- `GET /api/enrolments/{enrolmentId}`
+- `GET /api/enrolments/student/{studentId}`
+- `GET /api/enrolments/batch/{batchId}`
+- `GET /api/enrolments/branch/{branchId}`
+- `PUT /api/enrolments/{enrolmentId}`
+- `DELETE /api/enrolments/{enrolmentId}`
+- `GET /api/super-admin/leads`
+- `GET /api/super-admin/leads/{leadId}`
+- `POST /api/super-admin/leads`
+- `PUT /api/super-admin/leads/{leadId}`
+- `PATCH /api/super-admin/leads/{leadId}/status`
+- `POST /api/super-admin/leads/{leadId}/convert-to-admission`
+- `DELETE /api/super-admin/leads/{leadId}`
 
 Everything else in this document is the approved contract for the super admin phase and should be implemented next.
 
@@ -1124,7 +1150,8 @@ No payload.
 | Field | Type | Required | Purpose |
 |---|---|---:|---|
 | `branchId` | UUID | No | Filters teachers by branch. |
-| `subject` | string | No | Filters by primary subject. |
+| `subject` | string | No | Filters by legacy subject label, catalogue display name, or subject code. |
+| `subjectId` | UUID | No | Filters by canonical subject catalogue ID from `GET /api/courses/subjects`. |
 | `isActive` | boolean | No | Filters active or inactive teacher accounts. |
 | `search` | string | No | Searches by name, email, or phone. |
 | `page` | integer | No | Table page index. |
@@ -1155,6 +1182,10 @@ No payload.
         "qualification": "M.Sc. Mathematics",
         "experienceYears": 6,
         "subjects": ["Mathematics", "Physics"],
+        "subjectIds": [
+          "11111111-1111-1111-1111-111111111111",
+          "22222222-2222-2222-2222-222222222222"
+        ],
         "specialization": "Algebra",
         "joiningDate": "2026-05-08",
         "employmentType": "FULL_TIME",
@@ -1200,6 +1231,10 @@ No payload.
   "profilePhotoUrl": "https://cdn.example.com/teacher.jpg",
   "qualification": "M.Sc. Mathematics",
   "experienceYears": 6,
+  "subjectIds": [
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222"
+  ],
   "subjects": ["Mathematics", "Physics"],
   "specialization": "Algebra",
   "joiningDate": "2026-05-08",
@@ -1226,7 +1261,8 @@ No payload.
 | `profilePhotoUrl` | string | No | Teacher avatar for table and profile views. |
 | `qualification` | string | Yes | Academic qualification shown in teacher records. |
 | `experienceYears` | integer | No | Used in teacher listing and profile overview. |
-| `subjects` | array[string] | Yes | Indicates teaching subjects and drives subject filters later. |
+| `subjectIds` | array[UUID] | Preferred | Canonical subject catalogue links from `GET /api/courses/subjects`. Use this for new screens. |
+| `subjects` | array[string] | Backward compatible | Legacy free-text subject labels. Required only when `subjectIds` is empty or omitted. |
 | `specialization` | string | No | Optional academic specialization detail. |
 | `joiningDate` | date | Yes | Used for teacher profile and payout timelines. |
 | `employmentType` | string | Yes | Distinguishes full-time, part-time, or contractual teacher. |
@@ -1244,8 +1280,9 @@ No payload.
 2. Create `users` row with role `TEACHER`.
 3. Create `teachers` row linked to `user_id`.
 4. Store branch link and hourly rate.
-5. Persist subjects in `teacher_subjects`.
-6. Return teacher summary payload.
+5. Persist catalogue subjects in `teacher_subject_assignments`.
+6. Keep legacy labels in `teacher_subjects` for older screens and easy display.
+7. Return teacher summary payload with both `subjects` and `subjectIds`.
 
 ## 11.3 Teacher Detail
 
@@ -1275,6 +1312,7 @@ Same shape as the create teacher payload, except `password` and `confirmPassword
 - if both password fields are omitted, password remains unchanged.
 - if one password field is provided, both must match.
 - email and login ID must remain unique across non-deleted users.
+- use `subjectIds` for catalogue-aligned updates; `subjects` remains supported for old payloads.
 
 ## 11.5 Change Teacher Status
 
@@ -1400,6 +1438,21 @@ Same shape as the create teacher payload, except `password` and `confirmPassword
   "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
   "standard": "9th",
   "batch": "9th CBSE A",
+  "courseId": "a0000001-0000-0000-0000-000000000004",
+  "batchId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "subjectGroupId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+  "subjectIds": [
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222"
+  ],
+  "agreedTotalFee": 45000,
+  "paymentPlan": "INSTALMENT_3",
+  "instalments": [
+    { "instalmentNumber": 1, "label": "At Admission", "amount": 25000, "dueDate": "2026-05-08", "isPostDatedCheque": false },
+    { "instalmentNumber": 2, "label": "Second Instalment", "amount": 10000, "dueDate": "2026-07-15", "isPostDatedCheque": true },
+    { "instalmentNumber": 3, "label": "Third Instalment", "amount": 10000, "dueDate": "2026-09-15", "isPostDatedCheque": true }
+  ],
+  "enrolmentNotes": "Manual fee entered by admin",
   "gender": "MALE",
   "dateOfBirth": "2011-03-27",
   "mobile": "9876543210",
@@ -1425,7 +1478,15 @@ Same shape as the create teacher payload, except `password` and `confirmPassword
 | `studentId` | string | Yes | Business-visible student identifier shown in list and reports. |
 | `branchId` | UUID | Yes | Student branch mapping for all branch filters. |
 | `standard` | string | Yes | Class or grade used in filters and academic grouping. |
-| `batch` | string | Yes | Section or batch label shown in table. |
+| `batch` | string | Conditional | Section or batch label shown in table. Required only when `batchId` is omitted. If `batchId` is sent, backend stores the canonical batch name. |
+| `courseId` | UUID | Optional | Optional frontend consistency check. If sent with `batchId`, the batch must belong to this course. |
+| `batchId` | UUID | Optional | Canonical batch selection. When sent with `subjectIds` and `agreedTotalFee`, the API also creates a `student_enrolments` row. |
+| `subjectGroupId` | UUID | Optional | The subject group used as a starting point in the UI. Informational only. |
+| `subjectIds` | array[UUID] | Conditional | Actual selected subjects. Required when creating enrolment from this student API. |
+| `agreedTotalFee` | decimal | Conditional | Manually entered fee. Required when creating enrolment from this student API. No backend fee calculation. |
+| `paymentPlan` | enum | Optional | `REGULAR`, `LUMPSUM`, `INSTALMENT_2`, or `INSTALMENT_3`. Defaults to `REGULAR` when omitted with enrolment data. |
+| `instalments` | array | Optional | Manually entered payment schedule for the enrolment. |
+| `enrolmentNotes` | string | No | Internal admission/enrolment note. |
 | `gender` | enum | No | Demographic field for profile and analytics. |
 | `dateOfBirth` | date | No | Personal profile field. |
 | `mobile` | string | Yes | Student or primary contact number. |
@@ -1446,8 +1507,10 @@ Same shape as the create teacher payload, except `password` and `confirmPassword
 1. Validate branch and board value.
 2. Create `users` account with role `STUDENT`. Email is optional for future parent/student login flows; `loginId` is required.
 3. Create `students` row linked by `user_id`.
-4. Mark active and current admission state.
-5. Return student summary response.
+4. If `batchId`, `subjectIds`, and `agreedTotalFee` are present, create a linked `student_enrolments` row.
+5. Store only the manually entered amount and instalments; never calculate fees from course, batch, or subjects.
+6. Mark active and current admission state.
+7. Return student summary response.
 
 ## 12.3 Student Detail
 
@@ -1479,6 +1542,7 @@ Same shape as the create student payload, except `password` and `confirmPassword
 - `email` is optional, but if present it must be unique across non-deleted users.
 - if both password fields are omitted, password remains unchanged.
 - if one password field is provided, both must match.
+- course, batch, subject, and fee changes after admission should use `PUT /api/enrolments/{enrolmentId}` rather than student profile update.
 
 ## 12.5 Change Student Status
 
@@ -1507,14 +1571,27 @@ Same shape as the create student payload, except `password` and `confirmPassword
 
 ## 13.1 Lead List
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/leads`
 - Auth: `SUPER_ADMIN`
 - Purpose: Lists inquiry leads for the lead management screen.
 
+### Query Parameters
+
+| Field | Type | Required | Purpose |
+|---|---|---:|---|
+| `search` | string | No | Searches lead code, student name, parent/guardian name, phone, or email. |
+| `branchId` | UUID | No | Filters by preferred branch. |
+| `status` | string | No | Filters `NEW`, `CONTACTED`, `IN_FOLLOW_UP`, `CONVERTED`, or `NOT_INTERESTED`. |
+| `leadSource` | string | No | Filters by source such as referral, social media, website, banner, or pamphlet. |
+| `courseId` | UUID | No | Filters by selected/recommended course. |
+| `batchId` | UUID | No | Filters by selected/recommended batch. |
+| `page` | integer | No | Table page index. |
+| `size` | integer | No | Table page size. |
+
 ## 13.2 Create Lead
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/super-admin/leads`
 - Auth: `SUPER_ADMIN`
 - Purpose: Saves the long lead inquiry form shown in design.
@@ -1535,9 +1612,9 @@ The payload should be split into:
 | `studentName` | string | Yes | Lead identity for inquiry tracking. |
 | `gender` | enum | No | Student demographic detail from form. |
 | `dateOfBirth` | date | No | Student profile field from form. |
-| `classInterestedIn` | string | Yes | Needed to route lead to the correct academic offering. |
-| `board` | string | Yes | Needed because leads are board-sensitive in design. |
-| `medium` | string | Yes | Academic medium filter from form. |
+| `classInterestedIn` | string | No | Helps route lead to the correct academic offering. |
+| `board` | string | No | Board-sensitive inquiry detail. |
+| `medium` | string | No | Academic medium filter from form. |
 | `stream` | string | No | Needed for higher-class admission routing. |
 | `address` | string | No | Contact and locality context. |
 | `mobileNumber` | string | Yes | Primary lead contact number. |
@@ -1548,83 +1625,175 @@ The payload should be split into:
 | `relation` | string | No | Guardian relationship to the student. |
 | `leadSource` | string | Yes | Funnel tracking for analytics and conversion. |
 | `referredBy` | string | No | Source attribution when referral exists. |
-| `preferredBranchId` | UUID | Yes | Branch routing for admission ownership. |
-| `inquiryFor` | string | Yes | Captures whether inquiry is for admission, counseling, or another case. |
-| `expectedAdmissionYear` | string | Yes | Academic cycle target for follow-up. |
-| `preferredFollowupDate` | date | No | Follow-up scheduling aid. |
+| `preferredBranchId` | UUID | No | Branch routing for admission ownership. Required when converting if no branch is already set. |
+| `courseId` | UUID | No | Optional catalogue course selected during inquiry/counseling. |
+| `batchId` | UUID | No | Optional target batch selected during inquiry/counseling. |
+| `subjectIds` | array[UUID] | No | Optional subjects selected or suggested from the catalogue. |
+| `expectedAdmissionYear` | string | No | Academic cycle target for follow-up. |
+| `nextFollowUpAt` | datetime | No | Follow-up scheduling aid. |
 | `preferredContactTime` | string | No | Contact timing preference. |
-| `preferredContactModes` | array[string] | No | Call, WhatsApp, email, or SMS preference. |
-| `counselorRecommended` | string | No | Counselor assignment detail. |
-| `subjectsSuggested` | array[string] | No | Counseling outcome detail from form. |
+| `modeOfContact` | string | No | Call, WhatsApp, email, or SMS preference. |
+| `assignedToUserId` | UUID | No | Counselor or staff user assigned to the lead. |
+| `courseRecommended` | string | No | Counselor recommendation detail. |
 | `batchSuggested` | string | No | Recommended batch or section. |
 | `admissionLikelihood` | string | No | Funnel confidence used in counseling. |
 | `remarks` | string | No | Free-text counselor or staff notes. |
 
+### Sample Payload
+
+```json
+{
+  "studentName": "Aarav Singh",
+  "gender": "MALE",
+  "dateOfBirth": "2011-03-27",
+  "classInterestedIn": "8th",
+  "board": "CBSE",
+  "medium": "English",
+  "currentSchool": "Greenfield Public School",
+  "mobileNumber": "9876543210",
+  "email": "aarav@example.com",
+  "fatherName": "Rahul Singh",
+  "fatherMobileNumber": "9876543210",
+  "leadSource": "Parent Referral",
+  "preferredBranchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+  "courseId": "a0000001-0000-0000-0000-000000000004",
+  "batchId": "batch-uuid",
+  "subjectIds": ["subject-uuid-1", "subject-uuid-2"],
+  "expectedAdmissionYear": "2026-27",
+  "nextFollowUpAt": "2026-05-15T10:30:00",
+  "modeOfContact": "CALL",
+  "courseRecommended": "Std. 8th CBSE Batch",
+  "batchSuggested": "Chanakya",
+  "admissionLikelihood": "HIGH",
+  "remarks": "Interested in Maths and Science."
+}
+```
+
 ### Backend Implementation Steps
 
-1. Validate branch and academic fields.
-2. Save lead master row.
-3. Save counselor metadata and follow-up preferences.
-4. Store source for funnel analytics.
-5. Save uploaded file references.
-6. Write operational record with module `LEAD`.
+1. Validate optional branch, course, batch, subject, and assignee references.
+2. Save lead master row in `lead_inquiries`.
+3. Save selected subjects in `lead_subjects`.
+4. Store source, status, recommendation, and follow-up preferences.
+5. Write operational record with module `LEAD` for dashboard and analytics funnel.
 
 ## 13.3 Lead Detail
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
 - Endpoint: `GET /api/super-admin/leads/{leadId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Returns full lead details plus follow-up history.
 
-## 13.4 Convert Lead to Admission
+## 13.4 Update Lead
 
-- Status: `PLANNED`
+- Status: `IMPLEMENTED`
+- Endpoint: `PUT /api/super-admin/leads/{leadId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates inquiry details, optional course/batch/subject choices, and counselor recommendation fields.
+
+## 13.5 Update Lead Status
+
+- Status: `IMPLEMENTED`
+- Endpoint: `PATCH /api/super-admin/leads/{leadId}/status`
+- Auth: `SUPER_ADMIN`
+- Purpose: Updates lead status and adds a follow-up history row.
+
+### Request Payload
+
+```json
+{
+  "status": "IN_FOLLOW_UP",
+  "notes": "Parent asked for fee details and batch timing.",
+  "modeOfContact": "CALL",
+  "nextFollowUpAt": "2026-05-16T11:00:00"
+}
+```
+
+## 13.6 Convert Lead to Admission
+
+- Status: `IMPLEMENTED`
 - Endpoint: `POST /api/super-admin/leads/{leadId}/convert-to-admission`
 - Auth: `SUPER_ADMIN`
-- Purpose: Starts admission record using an approved lead.
+- Purpose: Converts a lead to a student admission and optionally creates a batch enrolment.
 
-## 13.5 Admission List
+### Request Payload
+
+```json
+{
+  "studentId": "STU240001",
+  "branchId": "72ca236b-b9d7-4c10-b5b6-28ddf4c9d432",
+  "standard": "8th",
+  "batch": "Chanakya",
+  "board": "CBSE",
+  "admissionDate": "2026-05-16",
+  "batchId": "batch-uuid",
+  "subjectGroupId": "subject-group-uuid",
+  "subjectIds": ["subject-uuid-1", "subject-uuid-2"],
+  "agreedTotalFee": 45000,
+  "paymentPlan": "INSTALMENTS",
+  "instalments": [
+    {
+      "instalmentNumber": 1,
+      "label": "At admission",
+      "amount": 30000,
+      "dueDate": "2026-05-16",
+      "isPostDatedCheque": false
+    }
+  ],
+  "notes": "Manual fee entered by admin."
+}
+```
+
+### Conversion Rules
+
+- The backend does not calculate fees from course, batch, subject group, or subject selections.
+- `agreedTotalFee` and instalments are manually entered by super admin/admin.
+- If `batchId`, `subjectIds`, and `agreedTotalFee` are present, the API creates a `student_enrolments` row.
+- If enrolment fields are omitted, the API only creates the student admission and marks the lead converted.
+- `School-Level Competitive Examination` data from the brochure is intentionally excluded from the catalogue.
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Lead converted successfully",
+  "data": {
+    "leadId": "6f75e8c9-c492-442a-8f06-84de5e040c07",
+    "leadCode": "INQ/2026/240001",
+    "studentId": "2c421b28-4f72-41a5-8d87-c6f1d215db76",
+    "visibleStudentId": "STU240001",
+    "convertedAt": "2026-05-16T16:00:00",
+    "enrolment": {
+      "id": "enrolment-uuid",
+      "batchId": "batch-uuid",
+      "agreedTotalFee": 45000,
+      "paymentPlan": "INSTALMENTS"
+    }
+  }
+}
+```
+
+## 13.7 Delete Lead
+
+- Status: `IMPLEMENTED`
+- Endpoint: `DELETE /api/super-admin/leads/{leadId}`
+- Auth: `SUPER_ADMIN`
+- Purpose: Soft deletes a lead inquiry.
+
+## 13.8 Admission List
 
 - Status: `PLANNED`
 - Endpoint: `GET /api/super-admin/admissions`
 - Auth: `SUPER_ADMIN`
-- Purpose: Lists admissions records and filters.
+- Purpose: Dedicated admission list can be added later. Current conversion creates/updates `students` and optional `student_enrolments`.
 
-## 13.6 Create Admission
+## 13.9 Create Admission
 
 - Status: `PLANNED`
 - Endpoint: `POST /api/super-admin/admissions`
 - Auth: `SUPER_ADMIN`
-- Purpose: Saves admission form shown in design.
-
-### Request Payload
-
-The admission payload should reuse student and guardian fields from lead capture, plus:
-
-| Field | Type | Required | Purpose |
-|---|---|---:|---|
-| `academicSession` | string | Yes | Admission belongs to one academic year. |
-| `admissionDate` | date | Yes | Required for admission timeline and reports. |
-| `admissionNumber` | string | No | Auto-generated or manually preserved admission identifier. |
-| `branchId` | UUID | Yes | Branch mapping for all downstream data. |
-| `classOrStandard` | string | Yes | Required academic placement. |
-| `board` | string | Yes | Board-specific admission grouping. |
-| `medium` | string | Yes | Medium-specific academic placement. |
-| `stream` | string | No | Needed where stream applies. |
-| `schoolLastAttended` | string | No | Previous school information from form. |
-| `lastClassPassed` | string | No | Admission eligibility context. |
-| `lastBoard` | string | No | Previous academic board. |
-| `passingYear` | integer | No | Prior academic timeline. |
-| `subjects` | array[string] | Yes | Selected study subjects from form. |
-| `transportRequired` | boolean | No | Operational requirement captured in form. |
-| `hostelRequired` | boolean | No | Operational requirement captured in form. |
-| `previousTransferCertificateUrl` | string | No | Admission document reference. |
-
-### Backend Implementation Steps
-
-1. Validate academic session and branch.
-2. Create or link student record.
-3. Mark `is_admission_final = true`.
-4. Write admission operational record.
-5. Return created admission summary.
+- Purpose: Dedicated direct-admission form can be added later. Current student management and lead conversion cover the admission creation path.
 
 ## 14. Analytics APIs
 
@@ -2483,6 +2652,13 @@ Current schema already provides these foundations:
 - `admin_profiles`
 - `teachers`
 - `students`
+- `subjects`
+- `courses`
+- `subject_groups`
+- `batches`
+- `student_enrolments`
+- `lead_inquiries`
+- `lead_follow_ups`
 - `generated_reports`
 - `refresh_tokens`
 - `operational_records`
@@ -2516,6 +2692,23 @@ Reports are now implemented using:
 - source tables such as `students`, `teachers`, `users`, and `operational_records` to regenerate report bytes on demand
 - `storage_provider=ON_DEMAND` for current synchronous downloads
 - `storage_provider=S3` and `storage_key` later for large or persistent report files
+
+Courses, batches, and enrolments are now implemented using:
+- `subjects` as a global master catalogue
+- `courses` for academic offerings such as SSC/CBSE/ICSE/HSC standards
+- `subject_groups` as UI helper bundles only; they pre-fill subjects but do not lock the final subject selection
+- `batches` as branch-specific running instances of a course
+- `student_enrolments` and `enrolment_subjects` for the actual student batch and subject selection
+- `agreed_total_fee` and `enrolment_instalments` for manually entered fee amounts and payment schedules
+- no backend fee-structure reference table and no automatic fee calculation from course, batch, or subject group
+- no seed/model for the brochure's `School-Level Competitive Examination` section
+
+Lead management is now implemented using:
+- `lead_inquiries` for student, parent/guardian, source, follow-up, and counselor recommendation fields
+- optional `course_id`, `batch_id`, and `lead_subjects` links so super admin/admin can select catalogue items during inquiry
+- manual admission/enrolment amount entry during conversion through `agreedTotalFee`
+- `lead_follow_ups` for follow-up history and status transitions
+- `operational_records` with module `LEAD` for dashboard and analytics funnel integration
 
 Branch management is now implemented using:
 - the existing `branches` table from the foundation migration
@@ -2588,3 +2781,1191 @@ The currently implemented APIs are:
 - delete admin
 
 The remaining APIs in this document are the approved super-admin-phase contract and should be implemented next, strictly following the designs and without expanding into non-visible features yet.
+
+
+---
+
+## 4.6 Courses, Batches and Student Enrolment APIs
+
+> Status: `IMPLEMENTED`
+> These APIs implement the full academic catalogue â€” subjects, courses, subject groups, batches, and student enrolments with manually entered fees.
+> **There is no backend fee calculation.** The admin enters the total fee and instalment amounts manually at enrolment time.
+
+---
+
+### Data Model Overview
+
+```
+Subject (master catalogue â€” global list of all subjects)
+  â””â”€â”€ SubjectGroup (named bundle of subjects per course, used as a UI helper)
+        â””â”€â”€ Course (academic offering: 8th CBSE, 11-12 HSC, etc.)
+
+Branch
+  â””â”€â”€ Batch (running instance of a Course at a Branch for a given academic year)
+        â””â”€â”€ StudentEnrolment (student enrolled in a batch)
+              â”œâ”€â”€ subjects[]       (actual subjects the student takes â€” admin picks freely)
+              â”œâ”€â”€ agreedTotalFee   (entered manually by admin â€” no calculation)
+              â””â”€â”€ EnrolmentInstalment[] (payment schedule â€” entered manually by admin)
+```
+
+### Design Principles
+
+- **No backend fee calculation.** The admin discusses the fee with the student/parent and enters the agreed amount directly.
+- **Subject groups are UI helpers only.** When the admin selects a group (e.g. "Vyasa"), the frontend pre-fills the subject checkboxes. The admin can then freely add or remove subjects before saving. The `subjectGroupId` on the enrolment just records which group was used as a starting point.
+- **Instalment schedule is fully manual.** The admin enters each instalment label, amount, due date, and whether it is a post-dated cheque.
+- **School-level competitive exam brochure content is excluded.** Do not seed or expose the separate "School-Level Competitive Examination" section unless a future screen explicitly requires it.
+
+---
+
+### 4.6.1 Subject APIs
+
+#### API: List All Subjects
+
+- Status: `IMPLEMENTED`
+- Purpose: Populate subject pickers in the enrolment form and other screens
+- Endpoint: `GET /api/courses/subjects`
+- Auth: Required (`Authorization: Bearer <token>`)
+- Roles: Any authenticated user
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "code": "MATHS",
+      "displayName": "Mathematics",
+      "shortName": "Maths",
+      "description": null,
+      "sortOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": "...",
+      "code": "SCIENCE",
+      "displayName": "Science",
+      "shortName": "Science",
+      "description": null,
+      "sortOrder": 2,
+      "isActive": true
+    }
+  ]
+}
+```
+
+**Response field descriptions:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Subject's unique identifier â€” use this as `subjectIds[]` in the enrolment request |
+| `code` | String (enum) | Canonical code â€” one of: `MATHS`, `SCIENCE`, `ENGLISH`, `LANGUAGE`, `SST`, `HINDI`, `MARATHI`, `SANSKRIT`, `GERMAN`, `HISTORY`, `GEOGRAPHY`, `CIVICS`, `PHYSICS`, `CHEMISTRY`, `BIOLOGY`, `MATHS_ADVANCED`, `ECONOMICS`, `ACCOUNTS`, `BUSINESS_STUDIES`, `LITERATURE`, `COMP_APP`, `OTHER` |
+| `displayName` | String | Human-readable label shown in the UI |
+| `shortName` | String | Abbreviated label for compact displays |
+| `description` | String or null | Optional description |
+| `sortOrder` | Integer | Display order (ascending) |
+| `isActive` | Boolean | Only active subjects are returned by this endpoint |
+
+- Where to use: Subject selection checkboxes in the enrolment form, timetable, homework, tests
+
+---
+
+### 4.6.2 Course APIs
+
+#### API: List All Courses
+
+- Status: `IMPLEMENTED`
+- Purpose: Populate the course selector when creating a batch or enrolling a student
+- Endpoint: `GET /api/courses`
+- Auth: Required
+- Roles: Any authenticated user
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `board` | String (enum) | No | Filter by board: `SSC`, `CBSE`, `ICSE` |
+| `category` | String (enum) | No | Filter by category: `BOARD_REGULAR`, `FOUNDATION`, `BOARD_SENIOR`, `COMPETITIVE`, `COMBINED` |
+
+If neither `board` nor `category` is provided, all active courses are returned.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "a0000001-0000-0000-0000-000000000004",
+      "name": "Std. 8th CBSE Batch",
+      "code": "CBSE-8",
+      "category": "BOARD_REGULAR",
+      "board": "CBSE",
+      "standard": "8",
+      "academicYear": null,
+      "description": null,
+      "isActive": true,
+      "sortOrder": 40,
+      "subjectGroups": null
+    }
+  ]
+}
+```
+
+**Response field descriptions:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Course identifier â€” use this as `courseId` when creating a batch |
+| `name` | String | Display name, e.g. "Std. 8th CBSE Batch" |
+| `code` | String | Short code, e.g. `CBSE-8`, `SSC-10`, `HSC-11-12` |
+| `category` | String (enum) | `BOARD_REGULAR` = SSC/CBSE/ICSE 8-10, `BOARD_SENIOR` = HSC/CBSE 11-12, `FOUNDATION` = junior programme, `COMPETITIVE` = JEE/NEET only, `COMBINED` = board + competitive |
+| `board` | String or null | `SSC`, `CBSE`, `ICSE`, or null for combined/competitive courses |
+| `standard` | String | Grade level: `"8"`, `"9"`, `"10"`, `"11-12"`, etc. |
+| `academicYear` | String or null | If set, this course is specific to one academic year; null means it repeats every year |
+| `sortOrder` | Integer | Display order |
+| `subjectGroups` | null | Not included in list view â€” use the detail endpoint to get subject groups |
+
+- Where to use: Batch creation form (step 1: pick a course), student enrolment form
+
+---
+
+#### API: Get Course Detail (with Subject Groups)
+
+- Status: `IMPLEMENTED`
+- Purpose: Load the subject groups and their subjects for a selected course â€” used to pre-fill the subject picker in the enrolment form
+- Endpoint: `GET /api/courses/{courseId}`
+- Auth: Required
+- Roles: Any authenticated user
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `courseId` | UUID | The course ID from the list endpoint |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "a0000001-0000-0000-0000-000000000004",
+    "name": "Std. 8th CBSE Batch",
+    "code": "CBSE-8",
+    "category": "BOARD_REGULAR",
+    "board": "CBSE",
+    "standard": "8",
+    "academicYear": null,
+    "description": null,
+    "isActive": true,
+    "sortOrder": 40,
+    "subjectGroups": [
+      {
+        "id": "b0000001-0000-0000-0000-000000000001",
+        "name": "Chanakya - All Subjects",
+        "shortName": "Chanakya",
+        "subjectCount": 5,
+        "isExtraSubjectAllowed": false,
+        "maxExtraSubjects": 0,
+        "subjects": [
+          { "id": "uuid", "code": "MATHS",    "displayName": "Mathematics",              "shortName": "Maths",    "sortOrder": 1,  "isActive": true },
+          { "id": "uuid", "code": "SCIENCE",  "displayName": "Science",                  "shortName": "Science",  "sortOrder": 2,  "isActive": true },
+          { "id": "uuid", "code": "ENGLISH",  "displayName": "English",                  "shortName": "English",  "sortOrder": 3,  "isActive": true },
+          { "id": "uuid", "code": "LANGUAGE", "displayName": "Language (Marathi/Hindi)", "shortName": "Language", "sortOrder": 4,  "isActive": true },
+          { "id": "uuid", "code": "SST",      "displayName": "Social Studies",           "shortName": "SST",      "sortOrder": 5,  "isActive": true }
+        ],
+        "allowedExtraSubjects": [],
+        "sortOrder": 1,
+        "isActive": true
+      },
+      {
+        "id": "b0000001-0000-0000-0000-000000000002",
+        "name": "Drona",
+        "shortName": "Drona",
+        "subjectCount": 4,
+        "isExtraSubjectAllowed": false,
+        "maxExtraSubjects": 0,
+        "subjects": [
+          { "id": "uuid", "code": "MATHS",   "displayName": "Mathematics", "shortName": "Maths",   "sortOrder": 1, "isActive": true },
+          { "id": "uuid", "code": "SCIENCE", "displayName": "Science",     "shortName": "Science", "sortOrder": 2, "isActive": true },
+          { "id": "uuid", "code": "ENGLISH", "displayName": "English",     "shortName": "English", "sortOrder": 3, "isActive": true },
+          { "id": "uuid", "code": "SST",     "displayName": "Social Studies", "shortName": "SST",  "sortOrder": 5, "isActive": true }
+        ],
+        "allowedExtraSubjects": [],
+        "sortOrder": 2,
+        "isActive": true
+      },
+      {
+        "id": "b0000001-0000-0000-0000-000000000003",
+        "name": "Vyasa",
+        "shortName": "Vyasa",
+        "subjectCount": 3,
+        "isExtraSubjectAllowed": true,
+        "maxExtraSubjects": 2,
+        "subjects": [
+          { "id": "uuid", "code": "MATHS",   "displayName": "Mathematics", "shortName": "Maths",   "sortOrder": 1, "isActive": true },
+          { "id": "uuid", "code": "SCIENCE", "displayName": "Science",     "shortName": "Science", "sortOrder": 2, "isActive": true },
+          { "id": "uuid", "code": "ENGLISH", "displayName": "English",     "shortName": "English", "sortOrder": 3, "isActive": true }
+        ],
+        "allowedExtraSubjects": [
+          { "id": "uuid", "code": "LANGUAGE", "displayName": "Language (Marathi/Hindi)", "shortName": "Language", "sortOrder": 4, "isActive": true },
+          { "id": "uuid", "code": "SST",      "displayName": "Social Studies",           "shortName": "SST",      "sortOrder": 5, "isActive": true }
+        ],
+        "sortOrder": 3,
+        "isActive": true
+      },
+      {
+        "id": "b0000001-0000-0000-0000-000000000004",
+        "name": "Arjuna",
+        "shortName": "Arjuna",
+        "subjectCount": 2,
+        "isExtraSubjectAllowed": true,
+        "maxExtraSubjects": 3,
+        "subjects": [
+          { "id": "uuid", "code": "MATHS",   "displayName": "Mathematics", "shortName": "Maths",   "sortOrder": 1, "isActive": true },
+          { "id": "uuid", "code": "SCIENCE", "displayName": "Science",     "shortName": "Science", "sortOrder": 2, "isActive": true }
+        ],
+        "allowedExtraSubjects": [
+          { "id": "uuid", "code": "ENGLISH",  "displayName": "English",                  "shortName": "English",  "sortOrder": 3, "isActive": true },
+          { "id": "uuid", "code": "LANGUAGE", "displayName": "Language (Marathi/Hindi)", "shortName": "Language", "sortOrder": 4, "isActive": true },
+          { "id": "uuid", "code": "SST",      "displayName": "Social Studies",           "shortName": "SST",      "sortOrder": 5, "isActive": true }
+        ],
+        "sortOrder": 4,
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+**SubjectGroup field descriptions:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Subject group identifier â€” pass as `subjectGroupId` in the enrolment request (optional) |
+| `name` | String | Display name of the group, e.g. "Chanakya - All Subjects", "Vyasa" |
+| `shortName` | String | Short label for compact display |
+| `subjectCount` | Integer | Canonical number of subjects in this group (informational) |
+| `isExtraSubjectAllowed` | Boolean | If `true`, the admin can add extra subjects beyond the group's default list |
+| `maxExtraSubjects` | Integer | Maximum number of extra subjects allowed (0 = unlimited). Only relevant when `isExtraSubjectAllowed = true` |
+| `subjects` | Array | Default subjects included in this group â€” pre-fill the subject checkboxes with these |
+| `allowedExtraSubjects` | Array | Subjects that can be added as extras. If empty, any active subject can be added |
+| `sortOrder` | Integer | Display order within the course |
+
+**How to use subject groups in the enrolment form:**
+
+1. Show the groups as radio buttons or a dropdown (e.g. "Chanakya", "Drona", "Vyasa", "Arjuna")
+2. When the admin selects a group, pre-fill the subject checkboxes with `subjects[]`
+3. If `isExtraSubjectAllowed = true`, show an "Add subject" picker populated from `allowedExtraSubjects[]` (or all subjects if empty)
+4. The admin can freely check/uncheck any subject before saving
+5. The final checked subjects become `subjectIds[]` in the enrolment request
+
+- Where to use: Student enrolment form (step: select subjects), batch creation context
+
+---
+
+### 4.6.3 Batch APIs
+
+A batch is a running instance of a course at a specific branch for a given academic year and timing slot. Students are enrolled into batches, not directly into courses.
+
+#### API: Create Batch
+
+- Status: `IMPLEMENTED`
+- Purpose: Create a new batch for a branch and course
+- Endpoint: `POST /api/batches`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Request Body:**
+
+```json
+{
+  "branchId": "branch-uuid",
+  "courseId": "a0000001-0000-0000-0000-000000000004",
+  "name": "8th CBSE Evening 2026-27",
+  "academicYear": "2026-27",
+  "batchType": "CHANAKYA",
+  "timing": "EVENING",
+  "timingLabel": null,
+  "startTime": "16:30:00",
+  "endTime": "19:30:00",
+  "daysOfWeek": "MON,TUE,WED,THU,FRI,SAT",
+  "startDate": "2026-03-25",
+  "endDate": null,
+  "maxStudents": 40,
+  "classTeacherId": "teacher-uuid",
+  "room": "Room 101"
+}
+```
+
+**Request field descriptions:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `branchId` | UUID | Yes | The branch this batch belongs to |
+| `courseId` | UUID | Yes | The course this batch runs (from `GET /api/courses`) |
+| `name` | String | No | Custom display name. If blank, auto-generated as `{courseName} â€“ {timing} â€“ {academicYear} ({branchName})` |
+| `academicYear` | String | Yes | Academic year in format `YYYY-YY`, e.g. `"2026-27"` |
+| `batchType` | String (enum) | No | Tier label: `CHANAKYA`, `DRONA`, `VYASA`, `ARJUNA`, `TIER_E`. Optional â€” can be set later |
+| `timing` | String (enum) | Yes | `MORNING`, `EVENING`, or `CUSTOM` |
+| `timingLabel` | String | Conditional | Required when `timing = CUSTOM`. Free-text label, e.g. `"04:30 PM â€“ 07:30 PM"` |
+| `startTime` | Time (`HH:mm:ss`) | No | Batch start time |
+| `endTime` | Time (`HH:mm:ss`) | No | Batch end time |
+| `daysOfWeek` | String | No | Comma-separated days: `"MON,TUE,WED,THU,FRI,SAT"` |
+| `startDate` | Date (`YYYY-MM-DD`) | No | Date the batch starts |
+| `endDate` | Date (`YYYY-MM-DD`) | No | Date the batch ends (null = ongoing) |
+| `maxStudents` | Integer | No | Maximum students allowed. `0` = unlimited. Defaults to `0` |
+| `classTeacherId` | UUID | No | Teacher assigned as class teacher for this batch |
+| `room` | String | No | Room or classroom label |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Batch created successfully",
+  "data": {
+    "id": "batch-uuid",
+    "branchId": "branch-uuid",
+    "branchName": "Main Branch",
+    "courseId": "a0000001-0000-0000-0000-000000000004",
+    "courseName": "Std. 8th CBSE Batch",
+    "courseCode": "CBSE-8",
+    "name": "8th CBSE Evening 2026-27",
+    "academicYear": "2026-27",
+    "batchType": "CHANAKYA",
+    "timing": "EVENING",
+    "timingLabel": null,
+    "startTime": "16:30:00",
+    "endTime": "19:30:00",
+    "daysOfWeek": "MON,TUE,WED,THU,FRI,SAT",
+    "startDate": "2026-03-25",
+    "endDate": null,
+    "maxStudents": 40,
+    "enrolledCount": 0,
+    "classTeacherId": "teacher-uuid",
+    "classTeacherName": "Rahul Sharma",
+    "room": "Room 101",
+    "isActive": true
+  }
+}
+```
+
+**Response field descriptions:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Batch identifier â€” use as `batchId` in enrolment requests |
+| `branchId` / `branchName` | UUID / String | Branch this batch belongs to |
+| `courseId` / `courseName` / `courseCode` | UUID / String / String | Course details |
+| `name` | String | Display name of the batch |
+| `academicYear` | String | e.g. `"2026-27"` |
+| `batchType` | String or null | Tier label if set |
+| `timing` | String | `MORNING`, `EVENING`, or `CUSTOM` |
+| `timingLabel` | String or null | Custom timing description (only when `timing = CUSTOM`) |
+| `startTime` / `endTime` | Time or null | Batch time slot |
+| `daysOfWeek` | String or null | Comma-separated days |
+| `startDate` / `endDate` | Date or null | Batch date range |
+| `maxStudents` | Integer | Capacity limit (`0` = unlimited) |
+| `enrolledCount` | Integer | Current number of active enrolments â€” updated automatically when students are enrolled or withdrawn |
+| `classTeacherId` / `classTeacherName` | UUID / String or null | Assigned class teacher |
+| `room` | String or null | Room label |
+| `isActive` | Boolean | Whether the batch is active |
+
+---
+
+#### API: List Batches (Paginated)
+
+- Status: `IMPLEMENTED`
+- Purpose: Admin batch management list with pagination
+- Endpoint: `GET /api/batches`
+- Auth: Required
+- Roles: Any authenticated user
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `branchId` | UUID | No | Filter by branch. If omitted, returns batches across all branches |
+| `page` | Integer | No | Page number, 0-indexed. Default: `0` |
+| `size` | Integer | No | Page size. Default: `20` |
+
+**Response:** Standard paginated envelope with `data.content[]` containing batch objects (same shape as create response).
+
+- Where to use: Batch management screen
+
+---
+
+#### API: List Active Batches by Branch (for Dropdowns)
+
+- Status: `IMPLEMENTED`
+- Purpose: Populate batch dropdowns in enrolment, attendance, timetable, homework, and test screens
+- Endpoint: `GET /api/batches/by-branch/{branchId}`
+- Auth: Required
+- Roles: Any authenticated user
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `branchId` | UUID | The branch to list batches for |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `academicYear` | String | No | Filter by academic year, e.g. `"2026-27"`. If omitted, returns all active batches for the branch |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "batch-uuid",
+      "branchId": "branch-uuid",
+      "branchName": "Main Branch",
+      "courseId": "course-uuid",
+      "courseName": "Std. 8th CBSE Batch",
+      "courseCode": "CBSE-8",
+      "name": "8th CBSE Evening 2026-27",
+      "academicYear": "2026-27",
+      "batchType": "CHANAKYA",
+      "timing": "EVENING",
+      "timingLabel": null,
+      "startTime": "16:30:00",
+      "endTime": "19:30:00",
+      "daysOfWeek": "MON,TUE,WED,THU,FRI,SAT",
+      "startDate": "2026-03-25",
+      "endDate": null,
+      "maxStudents": 40,
+      "enrolledCount": 12,
+      "classTeacherId": "teacher-uuid",
+      "classTeacherName": "Rahul Sharma",
+      "room": "Room 101",
+      "isActive": true
+    }
+  ]
+}
+```
+
+- Where to use: Any dropdown that needs a list of batches â€” student enrolment form, attendance marking, timetable, homework, tests
+
+---
+
+#### API: Get Batch Details
+
+- Status: `IMPLEMENTED`
+- Purpose: Fetch full details of a single batch
+- Endpoint: `GET /api/batches/{batchId}`
+- Auth: Required
+- Roles: Any authenticated user
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `batchId` | UUID | Batch identifier |
+
+**Response:** Single batch object (same shape as create response).
+
+---
+
+#### API: Update Batch
+
+- Status: `IMPLEMENTED`
+- Purpose: Edit batch details â€” all fields are optional, only non-null fields are applied
+- Endpoint: `PUT /api/batches/{batchId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Request Body (all fields optional):**
+
+```json
+{
+  "name": "8th CBSE Evening 2026-27 (Updated)",
+  "batchType": "DRONA",
+  "timing": "CUSTOM",
+  "timingLabel": "04:30 PM â€“ 07:30 PM",
+  "startTime": "16:30:00",
+  "endTime": "19:30:00",
+  "daysOfWeek": "MON,WED,FRI,SAT",
+  "startDate": "2026-04-01",
+  "endDate": "2027-03-31",
+  "maxStudents": 35,
+  "classTeacherId": "another-teacher-uuid",
+  "room": "Room 202",
+  "isActive": true
+}
+```
+
+**Response:** Updated batch object.
+
+---
+
+#### API: Delete Batch
+
+- Status: `IMPLEMENTED`
+- Purpose: Soft-delete a batch (marks as deleted, does not remove from database)
+- Endpoint: `DELETE /api/batches/{batchId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Batch deleted",
+  "data": null
+}
+```
+
+---
+
+### 4.6.4 Student Enrolment APIs
+
+An enrolment records a student's participation in a batch for a specific academic year, including which subjects they are taking and the fee agreed with the admin. All fee amounts are entered manually â€” there is no backend calculation.
+
+#### API: Create Enrolment
+
+- Status: `IMPLEMENTED`
+- Purpose: Enrol a student into a batch with manually entered fee and instalment schedule
+- Endpoint: `POST /api/enrolments`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Request Body:**
+
+```json
+{
+  "studentId": "student-uuid",
+  "batchId": "batch-uuid",
+  "subjectGroupId": "b0000001-0000-0000-0000-000000000003",
+  "subjectIds": [
+    "subject-uuid-maths",
+    "subject-uuid-science",
+    "subject-uuid-english"
+  ],
+  "agreedTotalFee": 38000,
+  "paymentPlan": "INSTALMENT_3",
+  "enrolmentDate": "2026-03-25",
+  "notes": "Sibling discount applied",
+  "instalments": [
+    {
+      "instalmentNumber": 1,
+      "label": "1st Instalment at time of Admission",
+      "amount": 21000,
+      "dueDate": null,
+      "isPostDatedCheque": false
+    },
+    {
+      "instalmentNumber": 2,
+      "label": "2nd Instalment on or before 15th July",
+      "amount": 8500,
+      "dueDate": "2026-07-15",
+      "isPostDatedCheque": true
+    },
+    {
+      "instalmentNumber": 3,
+      "label": "3rd Instalment on or before 15th September",
+      "amount": 8500,
+      "dueDate": "2026-09-15",
+      "isPostDatedCheque": true
+    }
+  ]
+}
+```
+
+**Request field descriptions:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `studentId` | UUID | Yes | The student to enrol |
+| `batchId` | UUID | Yes | The batch to enrol the student into |
+| `subjectGroupId` | UUID | No | Optional â€” the subject group used as a starting point. Purely informational. Pass the `id` from `GET /api/courses/{courseId}` subject groups |
+| `subjectIds` | UUID[] | Yes (min 1) | The actual subjects the student is enrolled for. Use IDs from `GET /api/courses/subjects` or from the subject group's `subjects[]` array |
+| `agreedTotalFee` | Decimal | Yes | Total fee agreed with the student/parent. Entered manually. Must be >= 0 |
+| `paymentPlan` | String (enum) | Yes | `REGULAR` = single payment, `LUMPSUM` = upfront lump sum, `INSTALMENT_2` = two instalments, `INSTALMENT_3` = three instalments |
+| `enrolmentDate` | Date (`YYYY-MM-DD`) | Yes | Date the student was enrolled |
+| `notes` | String | No | Internal notes, e.g. "Sibling discount applied" |
+| `instalments` | Array | No | Admin-entered payment schedule. Can be empty for `REGULAR` plan |
+| `instalments[].instalmentNumber` | Integer | Yes (per row) | Sequential number: 1, 2, 3 |
+| `instalments[].label` | String | Yes (per row) | Description shown on receipts |
+| `instalments[].amount` | Decimal | Yes (per row) | Amount for this instalment. Must be >= 0 |
+| `instalments[].dueDate` | Date or null | No | Due date. Null = due immediately (e.g. at admission) |
+| `instalments[].isPostDatedCheque` | Boolean | No | `true` if a post-dated cheque was collected. Default: `false` |
+
+**Error responses:**
+
+| HTTP Status | Error Code | When |
+|---|---|---|
+| `422` | `DUPLICATE_ENROLMENT` | Student already has an active enrolment in the same batch |
+| `404` | â€” | Student, batch, subject group, or any subject ID not found |
+| `400` | â€” | Validation error (missing required fields, negative fee, etc.) |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Student enrolled successfully",
+  "data": {
+    "id": "enrolment-uuid",
+    "studentId": "student-uuid",
+    "studentName": "Aarav Singh",
+    "studentLoginId": "STU-A3X9KL",
+    "batchId": "batch-uuid",
+    "batchName": "8th CBSE Evening 2026-27",
+    "academicYear": "2026-27",
+    "courseId": "course-uuid",
+    "courseName": "Std. 8th CBSE Batch",
+    "courseCode": "CBSE-8",
+    "subjectGroupId": "b0000001-0000-0000-0000-000000000003",
+    "subjectGroupName": "Vyasa",
+    "subjects": [
+      { "id": "uuid", "code": "MATHS",   "displayName": "Mathematics", "shortName": "Maths",   "sortOrder": 1, "isActive": true },
+      { "id": "uuid", "code": "SCIENCE", "displayName": "Science",     "shortName": "Science", "sortOrder": 2, "isActive": true },
+      { "id": "uuid", "code": "ENGLISH", "displayName": "English",     "shortName": "English", "sortOrder": 3, "isActive": true }
+    ],
+    "agreedTotalFee": 38000,
+    "paymentPlan": "INSTALMENT_3",
+    "totalPaid": 0.00,
+    "totalPending": 38000.00,
+    "instalments": [
+      {
+        "id": "inst-uuid-1",
+        "instalmentNumber": 1,
+        "label": "1st Instalment at time of Admission",
+        "amount": 21000,
+        "dueDate": null,
+        "isPostDatedCheque": false,
+        "isPaid": false,
+        "paidDate": null
+      },
+      {
+        "id": "inst-uuid-2",
+        "instalmentNumber": 2,
+        "label": "2nd Instalment on or before 15th July",
+        "amount": 8500,
+        "dueDate": "2026-07-15",
+        "isPostDatedCheque": true,
+        "isPaid": false,
+        "paidDate": null
+      },
+      {
+        "id": "inst-uuid-3",
+        "instalmentNumber": 3,
+        "label": "3rd Instalment on or before 15th September",
+        "amount": 8500,
+        "dueDate": "2026-09-15",
+        "isPostDatedCheque": true,
+        "isPaid": false,
+        "paidDate": null
+      }
+    ],
+    "enrolmentDate": "2026-03-25",
+    "status": "ACTIVE",
+    "notes": "Sibling discount applied"
+  }
+}
+```
+
+**Response field descriptions:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Enrolment identifier |
+| `studentId` / `studentName` / `studentLoginId` | â€” | Student details |
+| `batchId` / `batchName` / `academicYear` | â€” | Batch details |
+| `courseId` / `courseName` / `courseCode` | â€” | Course details (derived from the batch) |
+| `subjectGroupId` / `subjectGroupName` | UUID / String or null | The group used as a starting point, if any |
+| `subjects` | Array | The actual subjects the student is enrolled for |
+| `agreedTotalFee` | Decimal | Total fee as entered by the admin |
+| `paymentPlan` | String | Payment plan chosen |
+| `totalPaid` | Decimal | Sum of all instalments where `isPaid = true` |
+| `totalPending` | Decimal | `agreedTotalFee - totalPaid` |
+| `instalments[].isPaid` | Boolean | Updated by the fee collection module when payment is recorded |
+| `instalments[].paidDate` | Date or null | Date payment was recorded |
+| `status` | String | `ACTIVE`, `COMPLETED`, `WITHDRAWN`, `TRANSFERRED`, `SUSPENDED` |
+
+---
+
+#### API: Get Enrolment
+
+- Status: `IMPLEMENTED`
+- Endpoint: `GET /api/enrolments/{enrolmentId}`
+- Auth: Required
+- Roles: Any authenticated user
+- Response: Full enrolment object (same shape as create response)
+
+---
+
+#### API: Get Enrolments by Student
+
+- Status: `IMPLEMENTED`
+- Purpose: Show all batches a student is or was enrolled in
+- Endpoint: `GET /api/enrolments/student/{studentId}`
+- Auth: Required
+- Roles: Any authenticated user
+- Response: Array of enrolment objects ordered by `enrolmentDate` descending
+- Where to use: Student profile page (fee tab, academic history), parent portal
+
+---
+
+#### API: Get Enrolments by Batch
+
+- Status: `IMPLEMENTED`
+- Purpose: List all students enrolled in a batch with their fee status
+- Endpoint: `GET /api/enrolments/batch/{batchId}?page=0&size=20`
+- Auth: Required
+- Roles: Any authenticated user
+- Response: Paginated list of enrolment objects ordered by student name
+- Where to use: Batch detail page, attendance marking, fee collection
+
+---
+
+#### API: Get Enrolments by Branch and Year
+
+- Status: `IMPLEMENTED`
+- Purpose: Admin overview of all enrolments for a branch in an academic year
+- Endpoint: `GET /api/enrolments/branch/{branchId}?academicYear=2026-27&page=0&size=20`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+- Response: Paginated list of enrolment objects ordered by student name
+
+---
+
+#### API: Update Enrolment
+
+- Status: `IMPLEMENTED`
+- Purpose: Edit subjects, fee, payment plan, instalment schedule, or status
+- Endpoint: `PUT /api/enrolments/{enrolmentId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+
+**Request Body (all fields optional â€” only non-null fields are applied):**
+
+```json
+{
+  "subjectGroupId": "b0000001-0000-0000-0000-000000000001",
+  "subjectIds": ["subject-uuid-maths", "subject-uuid-science", "subject-uuid-english", "subject-uuid-sst"],
+  "agreedTotalFee": 42000,
+  "paymentPlan": "INSTALMENT_3",
+  "enrolmentDate": "2026-03-25",
+  "instalments": [
+    { "instalmentNumber": 1, "label": "At Admission", "amount": 25000, "dueDate": null,         "isPostDatedCheque": false },
+    { "instalmentNumber": 2, "label": "By 15th July", "amount": 8500,  "dueDate": "2026-07-15", "isPostDatedCheque": true  },
+    { "instalmentNumber": 3, "label": "By 15th Sep",  "amount": 8500,  "dueDate": "2026-09-15", "isPostDatedCheque": true  }
+  ],
+  "status": "ACTIVE",
+  "notes": "Extra subject SST added"
+}
+```
+
+**Update notes:**
+
+| Field | Behaviour |
+|---|---|
+| `subjectIds` | Replaces the entire subject list |
+| `instalments` | Replaces the entire instalment schedule |
+| `status` | Changing status automatically updates `batch.enrolledCount` |
+| All other fields | Applied only if non-null in the request |
+
+**Response:** Updated enrolment object.
+
+---
+
+#### API: Delete Enrolment
+
+- Status: `IMPLEMENTED`
+- Purpose: Soft-delete an enrolment (updates batch enrolled count automatically)
+- Endpoint: `DELETE /api/enrolments/{enrolmentId}`
+- Auth: Required
+- Roles: `SUPER_ADMIN`, `ADMIN`
+- Response: `{ "success": true, "message": "Enrolment deleted", "data": null }`
+
+---
+
+### 4.6.5 Subject Selection Rules
+
+The subject selection is fully flexible. The admin can use a subject group as a starting point or ignore groups entirely.
+
+| Scenario | What to send |
+|---|---|
+| Pick a named group (e.g. Chanakya â€” all 5 subjects) | `subjectGroupId` = group ID, `subjectIds` = all 5 subject IDs from the group |
+| Pick a group and add an extra subject | `subjectGroupId` = group ID, `subjectIds` = group subjects + extra subject ID |
+| Pick subjects freely without any group | `subjectGroupId` = null, `subjectIds` = any subject IDs |
+| Single subject only (e.g. Maths only) | `subjectGroupId` = null, `subjectIds` = [maths-uuid] |
+| Change subjects later | `PUT /api/enrolments/{id}` with new `subjectIds` |
+
+The `subjectGroupId` is purely informational â€” it records which group the admin started from. The `subjectIds` array is the authoritative record of what the student is enrolled for.
+
+---
+
+### 4.6.6 Seeded Master Data
+
+The following data is pre-seeded in `V7__courses_batches_enrolments.sql` and is available immediately after the first application startup.
+
+**Courses:**
+
+| Code | Name | Board | Standard | Category |
+|---|---|---|---|---|
+| `SSC-8` | Std. 8th SSC Batch | SSC | 8 | BOARD_REGULAR |
+| `SSC-9` | Std. 9th SSC Batch | SSC | 9 | BOARD_REGULAR |
+| `SSC-10` | Std. 10th SSC Batch | SSC | 10 | BOARD_REGULAR |
+| `CBSE-8` | Std. 8th CBSE Batch | CBSE | 8 | BOARD_REGULAR |
+| `CBSE-9` | Std. 9th CBSE Batch | CBSE | 9 | BOARD_REGULAR |
+| `CBSE-10` | Std. 10th CBSE Batch | CBSE | 10 | BOARD_REGULAR |
+| `ICSE-8` | Std. 8th ICSE Batch | ICSE | 8 | BOARD_REGULAR |
+| `ICSE-9` | Std. 9th ICSE Batch | ICSE | 9 | BOARD_REGULAR |
+| `ICSE-10` | Std. 10th ICSE Batch | ICSE | 10 | BOARD_REGULAR |
+| `HSC-11-12` | Std. 11th-12th HSC | â€” | 11-12 | BOARD_SENIOR |
+
+**Subject Groups (seeded for SSC-8 as an example â€” same pattern applies to other courses):**
+
+| Group | Default Subjects | Extra Subjects Allowed | Max Extras |
+|---|---|---|---|
+| Chanakya | Maths, Science, English, Language, SST | No | 0 |
+| Drona | Maths, Science, English, SST | No | 0 |
+| Vyasa | Maths, Science, English | Yes (Language, SST) | 2 |
+| Arjuna | Maths, Science | Yes (English, Language, SST) | 3 |
+
+**Subjects (22 subjects in master catalogue):**
+
+`MATHS`, `SCIENCE`, `ENGLISH`, `LANGUAGE`, `SST`, `HINDI`, `MARATHI`, `SANSKRIT`, `GERMAN`, `HISTORY`, `GEOGRAPHY`, `CIVICS`, `PHYSICS`, `CHEMISTRY`, `BIOLOGY`, `MATHS_ADVANCED`, `ECONOMICS`, `ACCOUNTS`, `BUSINESS_STUDIES`, `LITERATURE`, `COMP_APP`, `OTHER`
+
+---
+
+### 4.6.7 Frontend Integration Guide
+
+#### Batch Creation Flow
+
+```
+1. GET /api/courses                              â†’ populate course dropdown
+2. POST /api/batches                             â†’ create batch (branch + course + timing + year)
+3. GET /api/batches/by-branch/{branchId}         â†’ refresh batch dropdowns in other modules
+```
+
+#### Student Enrolment Flow
+
+```
+1. GET /api/batches/by-branch/{branchId}?academicYear=2026-27
+   â†’ populate batch dropdown
+
+2. GET /api/courses/{courseId}
+   â†’ load subject groups for the course linked to the selected batch
+   â†’ show groups as radio buttons or a dropdown
+
+3. Admin selects a subject group (optional)
+   â†’ pre-fill subject checkboxes from subjectGroup.subjects[]
+   â†’ if isExtraSubjectAllowed = true, show "Add subject" picker
+     from subjectGroup.allowedExtraSubjects[] (or all subjects if empty)
+
+4. Admin freely checks/unchecks subjects
+   â†’ collect final checked subject IDs as subjectIds[]
+
+5. Admin enters:
+   â†’ agreedTotalFee  (total fee agreed â€” no calculation)
+   â†’ paymentPlan     (REGULAR / LUMPSUM / INSTALMENT_2 / INSTALMENT_3)
+   â†’ instalments[]   (each row: label, amount, dueDate, isPostDatedCheque)
+
+6. POST /api/enrolments
+   â†’ save the enrolment
+```
+
+#### Batch Student List (for Attendance / Fee Collection)
+
+```
+GET /api/enrolments/batch/{batchId}?page=0&size=50
+â†’ returns all students in the batch with subjects, fee status (totalPaid, totalPending),
+  and instalment schedule
+```
+
+#### Student Fee Overview (Student Profile Page)
+
+```
+GET /api/enrolments/student/{studentId}
+â†’ returns all enrolments for the student across all batches and years
+â†’ each enrolment includes agreedTotalFee, totalPaid, totalPending, and instalments[]
+```
+
+#### End-to-End API Test Flow
+
+Use this sequence in Postman/Thunder Client after logging in as `SUPER_ADMIN`. Replace every placeholder UUID with the ID returned by the previous API.
+
+1. Login and store token.
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "loginId": "superadmin",
+  "password": "Password@123"
+}
+```
+
+Use `Authorization: Bearer {{accessToken}}` for every request below.
+
+2. Load subject catalogue.
+
+```http
+GET /api/courses/subjects
+Authorization: Bearer {{accessToken}}
+```
+
+Save subject IDs as `{{mathSubjectId}}` and `{{scienceSubjectId}}`.
+
+3. Load courses and choose one course.
+
+```http
+GET /api/courses?board=CBSE&standard=8
+Authorization: Bearer {{accessToken}}
+```
+
+Save the selected course ID as `{{courseId}}`.
+
+4. Load course detail and subject groups.
+
+```http
+GET /api/courses/{{courseId}}
+Authorization: Bearer {{accessToken}}
+```
+
+Save a subject group ID as `{{subjectGroupId}}`.
+
+5. Create a batch.
+
+```http
+POST /api/batches
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "branchId": "{{branchId}}",
+  "courseId": "{{courseId}}",
+  "name": "8th CBSE Evening 2026-27",
+  "academicYear": "2026-27",
+  "batchType": "CHANAKYA",
+  "timing": "EVENING",
+  "startTime": "16:30:00",
+  "endTime": "19:30:00",
+  "startDate": "2026-03-25",
+  "endDate": "2027-03-31",
+  "maxStudents": 60,
+  "room": "Room 101"
+}
+```
+
+Save `data.id` as `{{batchId}}`.
+
+6. Verify batches by branch.
+
+```http
+GET /api/batches/by-branch/{{branchId}}?academicYear=2026-27
+Authorization: Bearer {{accessToken}}
+```
+
+7. Create a teacher aligned with the subject catalogue.
+
+```http
+POST /api/super-admin/teachers
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "fullName": "Neha Patil",
+  "email": "neha.patil+test@institute.com",
+  "phone": "9876543210",
+  "qualification": "M.Sc. Mathematics",
+  "experienceYears": 6,
+  "subjectIds": ["{{mathSubjectId}}", "{{scienceSubjectId}}"],
+  "specialization": "Algebra",
+  "joiningDate": "2026-05-08",
+  "employmentType": "FULL_TIME",
+  "salaryType": "MONTHLY",
+  "hourlyRate": 0,
+  "loginId": "TEA_TEST_001",
+  "password": "Password@123",
+  "confirmPassword": "Password@123",
+  "branchId": "{{branchId}}",
+  "address": "Pune"
+}
+```
+
+8. Filter teachers by subject.
+
+```http
+GET /api/super-admin/teachers?subjectId={{mathSubjectId}}&page=0&size=10
+Authorization: Bearer {{accessToken}}
+```
+
+9. Create a direct student admission with batch, subjects, and manual fee.
+
+```http
+POST /api/super-admin/students
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "fullName": "Aarav Sharma",
+  "studentId": "STU_TEST_001",
+  "branchId": "{{branchId}}",
+  "standard": "8th",
+  "board": "CBSE",
+  "batchId": "{{batchId}}",
+  "courseId": "{{courseId}}",
+  "subjectGroupId": "{{subjectGroupId}}",
+  "subjectIds": ["{{mathSubjectId}}", "{{scienceSubjectId}}"],
+  "agreedTotalFee": 45000,
+  "paymentPlan": "INSTALMENT_3",
+  "instalments": [
+    { "instalmentNumber": 1, "label": "At Admission", "amount": 25000, "dueDate": "2026-05-08", "isPostDatedCheque": false },
+    { "instalmentNumber": 2, "label": "Second Instalment", "amount": 10000, "dueDate": "2026-07-15", "isPostDatedCheque": true },
+    { "instalmentNumber": 3, "label": "Third Instalment", "amount": 10000, "dueDate": "2026-09-15", "isPostDatedCheque": true }
+  ],
+  "gender": "MALE",
+  "dateOfBirth": "2012-03-27",
+  "mobile": "9876543210",
+  "parentName": "Rajesh Sharma",
+  "parentPhone": "9876543211",
+  "email": "aarav.test@example.com",
+  "address": "Pune",
+  "schoolName": "Greenfield Public School",
+  "admissionDate": "2026-05-08",
+  "loginId": "STU_TEST_001",
+  "password": "Password@123",
+  "confirmPassword": "Password@123"
+}
+```
+
+Save `data.id` as `{{studentId}}`.
+
+10. Verify student enrolments.
+
+```http
+GET /api/enrolments/student/{{studentId}}
+Authorization: Bearer {{accessToken}}
+```
+
+11. Create a lead with course, batch, and subjects.
+
+```http
+POST /api/super-admin/leads
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "studentName": "Vivaan Patel",
+  "gender": "MALE",
+  "classInterestedIn": "8th",
+  "board": "CBSE",
+  "mobileNumber": "9876543220",
+  "fatherName": "Amit Patel",
+  "fatherMobileNumber": "9876543221",
+  "leadSource": "Parent Referral",
+  "preferredBranchId": "{{branchId}}",
+  "courseId": "{{courseId}}",
+  "batchId": "{{batchId}}",
+  "subjectIds": ["{{mathSubjectId}}", "{{scienceSubjectId}}"],
+  "preferredContactTime": "10:00 AM - 12:00 PM",
+  "modeOfContact": "CALL",
+  "remarks": "Interested in Maths and Science batch."
+}
+```
+
+Save `data.id` as `{{leadId}}`.
+
+12. Add follow-up/status on the lead.
+
+```http
+PATCH /api/super-admin/leads/{{leadId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "status": "IN_FOLLOW_UP",
+  "followUpAt": "2026-05-20T10:30:00",
+  "remarks": "Parent asked for fee details.",
+  "contactedBy": "Admin"
+}
+```
+
+13. Convert lead to admission with manual fee and optional enrolment.
+
+```http
+POST /api/super-admin/leads/{{leadId}}/convert-to-admission
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+
+```json
+{
+  "studentId": "STU_TEST_002",
+  "loginId": "STU_TEST_002",
+  "password": "Password@123",
+  "confirmPassword": "Password@123",
+  "branchId": "{{branchId}}",
+  "admissionDate": "2026-05-16",
+  "standard": "8th",
+  "batch": "8th CBSE Evening 2026-27",
+  "board": "CBSE",
+  "batchId": "{{batchId}}",
+  "subjectGroupId": "{{subjectGroupId}}",
+  "subjectIds": ["{{mathSubjectId}}", "{{scienceSubjectId}}"],
+  "agreedTotalFee": 45000,
+  "paymentPlan": "INSTALMENT_3",
+  "instalments": [
+    { "instalmentNumber": 1, "label": "At Admission", "amount": 25000, "dueDate": "2026-05-16", "isPostDatedCheque": false },
+    { "instalmentNumber": 2, "label": "Second Instalment", "amount": 10000, "dueDate": "2026-07-15", "isPostDatedCheque": true },
+    { "instalmentNumber": 3, "label": "Third Instalment", "amount": 10000, "dueDate": "2026-09-15", "isPostDatedCheque": true }
+  ]
+}
+```
+
+14. Verify batch enrolment list.
+
+```http
+GET /api/enrolments/batch/{{batchId}}?page=0&size=20
+Authorization: Bearer {{accessToken}}
+```
+
+Important rule: course, subject group, and batch selections are catalogue/navigation data. The fee is always manually entered through `agreedTotalFee` and `instalments`; the backend does not configure or calculate fee structures from the brochure.
+
+#### Enrolment Status Values
+
+| Status | Meaning |
+|---|---|
+| `ACTIVE` | Student is currently enrolled and attending |
+| `COMPLETED` | Academic year or course completed |
+| `WITHDRAWN` | Student left mid-course |
+| `TRANSFERRED` | Moved to another batch or branch |
+| `SUSPENDED` | Temporarily suspended |
+
+Changing status via `PUT /api/enrolments/{id}` automatically updates `batch.enrolledCount`.
+
+#### Payment Plan Values
+
+| Value | Meaning |
+|---|---|
+| `REGULAR` | Single full payment (standard) |
+| `LUMPSUM` | Single upfront lump-sum (e.g. with discount) |
+| `INSTALMENT_2` | Two-instalment schedule |
+| `INSTALMENT_3` | Three-instalment schedule |
+

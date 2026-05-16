@@ -265,7 +265,7 @@ public class SuperAdminAnalyticsService {
 
     private SuperAdminAnalyticsResponse.LeadConversionFunnel buildLeadConversionFunnel(List<OperationalRecord> leadRecords) {
         long totalLeads = leadRecords.size();
-        long interested = leadRecords.stream().filter(record -> hasStatus(record, "INTERESTED")).count();
+        long interested = leadRecords.stream().filter(this::isInterestedLeadStatus).count();
         long converted = leadRecords.stream().filter(record -> hasStatus(record, "CONVERTED")).count();
         long admissions = leadRecords.stream().filter(record -> hasStatus(record, "ADMISSION_COMPLETED")).count();
 
@@ -512,6 +512,12 @@ public class SuperAdminAnalyticsService {
 
     private boolean hasStatus(OperationalRecord record, String status) {
         return record.getStatus() != null && record.getStatus().equalsIgnoreCase(status);
+    }
+
+    private boolean isInterestedLeadStatus(OperationalRecord record) {
+        return hasStatus(record, "INTERESTED")
+                || hasStatus(record, "CONTACTED")
+                || hasStatus(record, "IN_FOLLOW_UP");
     }
 
     private String shortMonth(YearMonth month) {

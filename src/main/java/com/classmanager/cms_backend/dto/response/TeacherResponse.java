@@ -29,6 +29,7 @@ public class TeacherResponse {
     private String qualification;
     private Integer experienceYears;
     private List<String> subjects;
+    private List<UUID> subjectIds;
     private String specialization;
     private LocalDate joiningDate;
     private String employmentType;

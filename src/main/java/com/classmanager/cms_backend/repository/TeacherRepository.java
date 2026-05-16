@@ -34,12 +34,19 @@ public interface TeacherRepository extends JpaRepository<Teacher, UUID> {
             from Teacher t
             join t.user u
             join t.branch b
-            left join t.subjects s
+            left join t.subjects legacySubject
+            left join t.catalogSubjects catalogSubject
             where t.isDeleted = false
               and u.isDeleted = false
               and (:branchId is null or b.id = :branchId)
               and (:isActive is null or t.isActive = :isActive)
-              and (cast(:subject as string) is null or lower(s) = lower(cast(:subject as string)))
+              and (
+                    cast(:subject as string) is null
+                    or lower(legacySubject) = lower(cast(:subject as string))
+                    or lower(catalogSubject.displayName) = lower(cast(:subject as string))
+                    or lower(cast(catalogSubject.code as string)) = lower(cast(:subject as string))
+              )
+              and (:subjectId is null or catalogSubject.id = :subjectId)
               and (
                     cast(:searchPattern as string) is null
                     or lower(t.name) like cast(:searchPattern as string)
@@ -52,6 +59,7 @@ public interface TeacherRepository extends JpaRepository<Teacher, UUID> {
                                  @Param("isActive") Boolean isActive,
                                  @Param("branchId") UUID branchId,
                                  @Param("subject") String subject,
+                                 @Param("subjectId") UUID subjectId,
                                  Pageable pageable);
 
     @Query("""

@@ -50,6 +50,15 @@ public class Teacher extends BaseEntity {
     @Builder.Default
     private List<String> subjects = new ArrayList<>();
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "teacher_subject_assignments",
+            joinColumns = @JoinColumn(name = "teacher_id"),
+            inverseJoinColumns = @JoinColumn(name = "subject_id")
+    )
+    @Builder.Default
+    private List<Subject> catalogSubjects = new ArrayList<>();
+
     @Column(name = "specialization")
     private String specialization;
 

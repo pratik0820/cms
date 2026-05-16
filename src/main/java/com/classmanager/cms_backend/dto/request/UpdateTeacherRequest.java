@@ -2,7 +2,6 @@ package com.classmanager.cms_backend.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -38,8 +37,9 @@ public class UpdateTeacherRequest {
     @PositiveOrZero(message = "Experience years cannot be negative")
     private Integer experienceYears;
 
-    @NotEmpty(message = "At least one subject is required")
     private List<@NotBlank(message = "Subject cannot be blank") String> subjects;
+
+    private List<UUID> subjectIds;
 
     private String specialization;
 

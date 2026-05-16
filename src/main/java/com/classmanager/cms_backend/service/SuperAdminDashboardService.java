@@ -256,7 +256,7 @@ public class SuperAdminDashboardService {
 
     private SuperAdminDashboardResponse.LeadConversionOverview buildLeadOverview(List<OperationalRecord> leadRecords) {
         long totalLeads = leadRecords.size();
-        long interested = leadRecords.stream().filter(record -> hasStatus(record, "INTERESTED")).count();
+        long interested = leadRecords.stream().filter(this::isInterestedLeadStatus).count();
         long converted = leadRecords.stream().filter(record -> hasStatus(record, "CONVERTED")).count();
         long admissions = leadRecords.stream().filter(record -> hasStatus(record, "ADMISSION_COMPLETED")).count();
 
@@ -339,6 +339,12 @@ public class SuperAdminDashboardService {
 
     private boolean hasStatus(OperationalRecord record, String expectedStatus) {
         return record.getStatus() != null && record.getStatus().equalsIgnoreCase(expectedStatus);
+    }
+
+    private boolean isInterestedLeadStatus(OperationalRecord record) {
+        return hasStatus(record, "INTERESTED")
+                || hasStatus(record, "CONTACTED")
+                || hasStatus(record, "IN_FOLLOW_UP");
     }
 
     private SuperAdminDashboardResponse.LeadStage buildLeadStage(String label, long count, long totalLeads) {

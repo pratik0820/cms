@@ -1,21 +1,25 @@
 package com.classmanager.cms_backend.service;
 
 import com.classmanager.cms_backend.dto.request.CreateStudentRequest;
+import com.classmanager.cms_backend.dto.request.CreateEnrolmentRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentStatusRequest;
 import com.classmanager.cms_backend.dto.response.StudentManagementResponse;
 import com.classmanager.cms_backend.dto.response.StudentResponse;
+import com.classmanager.cms_backend.entity.Batch;
 import com.classmanager.cms_backend.entity.Branch;
 import com.classmanager.cms_backend.entity.OperationalRecord;
 import com.classmanager.cms_backend.entity.Role;
 import com.classmanager.cms_backend.entity.Student;
 import com.classmanager.cms_backend.entity.User;
 import com.classmanager.cms_backend.enums.BoardType;
+import com.classmanager.cms_backend.enums.FeePaymentPlan;
 import com.classmanager.cms_backend.enums.UserRole;
 import com.classmanager.cms_backend.exception.BadRequestException;
 import com.classmanager.cms_backend.exception.ResourceAlreadyExistsException;
 import com.classmanager.cms_backend.exception.ResourceNotFoundException;
 import com.classmanager.cms_backend.repository.BranchRepository;
+import com.classmanager.cms_backend.repository.BatchRepository;
 import com.classmanager.cms_backend.repository.OperationalRecordRepository;
 import com.classmanager.cms_backend.repository.RefreshTokenRepository;
 import com.classmanager.cms_backend.repository.RoleRepository;
@@ -31,8 +35,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,6 +55,8 @@ public class StudentManagementService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OperationalRecordRepository operationalRecordRepository;
+    private final BatchRepository batchRepository;
+    private final StudentEnrolmentService studentEnrolmentService;
 
     @Transactional(readOnly = true)
     public StudentManagementResponse getStudents(String search,
@@ -106,6 +114,7 @@ public class StudentManagementService {
         validateUniqueEmailForCreate(normalizedEmail);
 
         Branch branch = loadBranch(request.getBranchId());
+        Batch selectedBatch = loadAndValidateOptionalBatch(request.getBatchId(), branch.getId());
         Role studentRole = loadStudentRole();
         User creator = loadUser(createdByUserId);
 
@@ -137,7 +146,7 @@ public class StudentManagementService {
                 .address(trimToNull(request.getAddress()))
                 .schoolName(trimToNull(request.getSchoolName()))
                 .standard(request.getStandard().trim())
-                .batch(request.getBatch().trim())
+                .batch(resolveBatchLabel(request.getBatch(), selectedBatch))
                 .board(parseBoard(request.getBoard()))
                 .admissionDate(request.getAdmissionDate())
                 .isAdmissionFinal(true)
@@ -145,6 +154,7 @@ public class StudentManagementService {
                 .createdByUser(creator)
                 .build();
         student = studentRepository.save(student);
+        createOptionalEnrolment(student, request);
 
         recordStudentActivity("STUDENT_CREATED", student, createdByUserId, "Student account created");
         return toResponse(student);
@@ -258,6 +268,18 @@ public class StudentManagementService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
     }
 
+    private Batch loadAndValidateOptionalBatch(UUID batchId, UUID branchId) {
+        if (batchId == null) {
+            return null;
+        }
+        Batch batch = batchRepository.findByIdAndIsDeletedFalse(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId));
+        if (!batch.getBranch().getId().equals(branchId)) {
+            throw new BadRequestException("Selected batch does not belong to the selected branch", "BATCH_BRANCH_MISMATCH");
+        }
+        return batch;
+    }
+
     private Role loadStudentRole() {
         return roleRepository.findByName(UserRole.STUDENT.name())
                 .orElseThrow(() -> new ResourceNotFoundException("Role", UserRole.STUDENT.name()));
@@ -302,6 +324,62 @@ public class StudentManagementService {
         } catch (RuntimeException ex) {
             throw new BadRequestException("Board must be one of SSC, CBSE, or ICSE", "INVALID_BOARD");
         }
+    }
+
+    private void createOptionalEnrolment(Student student, CreateStudentRequest request) {
+        if (!hasEnrolmentSelection(request)) {
+            return;
+        }
+        validateEnrolmentSelection(request);
+
+        CreateEnrolmentRequest enrolmentRequest = new CreateEnrolmentRequest();
+        enrolmentRequest.setStudentId(student.getId());
+        enrolmentRequest.setBatchId(request.getBatchId());
+        enrolmentRequest.setSubjectGroupId(request.getSubjectGroupId());
+        enrolmentRequest.setSubjectIds(request.getSubjectIds());
+        enrolmentRequest.setAgreedTotalFee(request.getAgreedTotalFee());
+        enrolmentRequest.setPaymentPlan(request.getPaymentPlan() == null ? FeePaymentPlan.REGULAR : request.getPaymentPlan());
+        enrolmentRequest.setEnrolmentDate(request.getAdmissionDate());
+        enrolmentRequest.setInstalments(request.getInstalments());
+        enrolmentRequest.setNotes(trimToNull(request.getEnrolmentNotes()));
+        studentEnrolmentService.createEnrolment(enrolmentRequest);
+    }
+
+    private boolean hasEnrolmentSelection(CreateStudentRequest request) {
+        return request.getBatchId() != null
+                || request.getSubjectGroupId() != null
+                || request.getSubjectIds() != null
+                || request.getAgreedTotalFee() != null
+                || request.getPaymentPlan() != null
+                || request.getInstalments() != null;
+    }
+
+    private void validateEnrolmentSelection(CreateStudentRequest request) {
+        if (request.getBatchId() == null
+                || request.getSubjectIds() == null
+                || request.getSubjectIds().isEmpty()
+                || request.getAgreedTotalFee() == null) {
+            throw new BadRequestException(
+                    "batchId, subjectIds and agreedTotalFee are required when creating an enrolment with a student",
+                    "ENROLMENT_SELECTION_INCOMPLETE");
+        }
+        if (request.getCourseId() != null) {
+            Batch batch = batchRepository.findByIdAndIsDeletedFalse(request.getBatchId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Batch", request.getBatchId()));
+            if (!batch.getCourse().getId().equals(request.getCourseId())) {
+                throw new BadRequestException("Selected batch does not belong to the selected course", "BATCH_COURSE_MISMATCH");
+            }
+        }
+    }
+
+    private String resolveBatchLabel(String requestBatch, Batch selectedBatch) {
+        if (selectedBatch != null) {
+            return selectedBatch.getName();
+        }
+        if (!StringUtils.hasText(requestBatch)) {
+            throw new BadRequestException("Batch is required", "VALIDATION_ERROR");
+        }
+        return requestBatch.trim();
     }
 
     private void validatePasswordConfirmation(String password, String confirmPassword) {

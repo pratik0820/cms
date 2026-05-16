@@ -8,6 +8,7 @@ import com.classmanager.cms_backend.dto.response.TeacherResponse;
 import com.classmanager.cms_backend.entity.Branch;
 import com.classmanager.cms_backend.entity.OperationalRecord;
 import com.classmanager.cms_backend.entity.Role;
+import com.classmanager.cms_backend.entity.Subject;
 import com.classmanager.cms_backend.entity.Teacher;
 import com.classmanager.cms_backend.entity.User;
 import com.classmanager.cms_backend.enums.UserRole;
@@ -18,6 +19,7 @@ import com.classmanager.cms_backend.repository.BranchRepository;
 import com.classmanager.cms_backend.repository.OperationalRecordRepository;
 import com.classmanager.cms_backend.repository.RefreshTokenRepository;
 import com.classmanager.cms_backend.repository.RoleRepository;
+import com.classmanager.cms_backend.repository.SubjectRepository;
 import com.classmanager.cms_backend.repository.TeacherRepository;
 import com.classmanager.cms_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -50,15 +52,23 @@ public class SuperAdminTeacherService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OperationalRecordRepository operationalRecordRepository;
+    private final SubjectRepository subjectRepository;
 
     @Transactional(readOnly = true)
-    public TeacherManagementResponse getTeachers(String search, Boolean isActive, UUID branchId, String subject, int page, int size) {
+    public TeacherManagementResponse getTeachers(String search,
+                                                 Boolean isActive,
+                                                 UUID branchId,
+                                                 String subject,
+                                                 UUID subjectId,
+                                                 int page,
+                                                 int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
         Page<Teacher> teacherPage = teacherRepository.searchTeachers(
                 buildSearchPattern(search),
                 isActive,
                 branchId,
                 trimToNull(subject),
+                subjectId,
                 pageable
         );
 
@@ -102,6 +112,8 @@ public class SuperAdminTeacherService {
         Branch branch = loadBranch(request.getBranchId());
         Role teacherRole = loadTeacherRole();
         User creator = loadUser(createdByUserId);
+        List<Subject> catalogSubjects = resolveCatalogSubjects(request.getSubjectIds());
+        List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
         User user = User.builder()
                 .email(normalizedEmail)
@@ -126,7 +138,8 @@ public class SuperAdminTeacherService {
                 .gender(trimToNull(request.getGender()))
                 .qualification(request.getQualification().trim())
                 .experienceYears(request.getExperienceYears())
-                .subjects(normalizeSubjects(request.getSubjects()))
+                .subjects(subjects)
+                .catalogSubjects(catalogSubjects)
                 .specialization(trimToNull(request.getSpecialization()))
                 .joiningDate(request.getJoiningDate())
                 .employmentType(request.getEmploymentType().trim())
@@ -152,6 +165,8 @@ public class SuperAdminTeacherService {
         handleOptionalPasswordUpdate(user, request.getPassword(), request.getConfirmPassword());
 
         Branch branch = loadBranch(request.getBranchId());
+        List<Subject> catalogSubjects = resolveCatalogSubjects(request.getSubjectIds());
+        List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
         user.setFullName(request.getFullName().trim());
         user.setEmail(normalizeRequired(request.getEmail(), "Email is required"));
@@ -169,7 +184,8 @@ public class SuperAdminTeacherService {
         teacher.setGender(trimToNull(request.getGender()));
         teacher.setQualification(request.getQualification().trim());
         teacher.setExperienceYears(request.getExperienceYears());
-        teacher.setSubjects(normalizeSubjects(request.getSubjects()));
+        teacher.setSubjects(subjects);
+        teacher.setCatalogSubjects(catalogSubjects);
         teacher.setSpecialization(trimToNull(request.getSpecialization()));
         teacher.setJoiningDate(request.getJoiningDate());
         teacher.setEmploymentType(request.getEmploymentType().trim());
@@ -257,7 +273,8 @@ public class SuperAdminTeacherService {
                 .profilePhotoUrl(user.getProfilePhotoUrl())
                 .qualification(teacher.getQualification())
                 .experienceYears(teacher.getExperienceYears())
-                .subjects(List.copyOf(teacher.getSubjects()))
+                .subjects(resolveResponseSubjectNames(teacher))
+                .subjectIds(teacher.getCatalogSubjects().stream().map(Subject::getId).toList())
                 .specialization(teacher.getSpecialization())
                 .joiningDate(teacher.getJoiningDate())
                 .employmentType(teacher.getEmploymentType())
@@ -306,16 +323,45 @@ public class SuperAdminTeacherService {
                 });
     }
 
-    private List<String> normalizeSubjects(List<String> subjects) {
-        List<String> normalizedSubjects = subjects.stream()
+    private List<Subject> resolveCatalogSubjects(List<UUID> subjectIds) {
+        if (subjectIds == null || subjectIds.isEmpty()) {
+            return List.of();
+        }
+        return subjectIds.stream()
+                .distinct()
+                .map(subjectId -> subjectRepository.findByIdAndIsDeletedFalse(subjectId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Subject", subjectId)))
+                .toList();
+    }
+
+    private List<String> resolveSubjectNames(List<String> legacySubjects, List<Subject> catalogSubjects) {
+        List<String> normalizedSubjects = legacySubjects == null
+                ? List.of()
+                : legacySubjects.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
                 .distinct()
                 .toList();
+
+        if (!catalogSubjects.isEmpty()) {
+            return catalogSubjects.stream()
+                    .map(Subject::getDisplayName)
+                    .distinct()
+                    .toList();
+        }
         if (normalizedSubjects.isEmpty()) {
             throw new BadRequestException("At least one subject is required", "VALIDATION_ERROR");
         }
         return normalizedSubjects;
+    }
+
+    private List<String> resolveResponseSubjectNames(Teacher teacher) {
+        if (teacher.getCatalogSubjects() != null && !teacher.getCatalogSubjects().isEmpty()) {
+            return teacher.getCatalogSubjects().stream()
+                    .map(Subject::getDisplayName)
+                    .toList();
+        }
+        return List.copyOf(teacher.getSubjects());
     }
 
     private BigDecimal resolveHourlyRate(BigDecimal hourlyRate) {

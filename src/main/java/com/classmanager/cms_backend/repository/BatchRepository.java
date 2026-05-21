@@ -37,17 +37,17 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
             where b.isDeleted = false
               and (:branchId is null or b.branch.id = :branchId)
               and (
-                    :search is null
-                    or lower(b.displayCode) like lower(concat('%', :search, '%'))
-                    or lower(b.name) like lower(concat('%', :search, '%'))
-                    or lower(c.name) like lower(concat('%', :search, '%'))
-                    or lower(c.standard) like lower(concat('%', :search, '%'))
-                    or lower(c.medium) like lower(concat('%', :search, '%'))
-                    or lower(cast(c.board as string)) like lower(concat('%', :search, '%'))
+                    cast(:searchPattern as string) is null
+                    or lower(coalesce(b.displayCode, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(b.name, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(c.name, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(c.standard, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(c.medium, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(cast(c.board as string), '')) like cast(:searchPattern as string)
               )
             """)
     Page<Batch> searchAcademicCourses(@Param("branchId") UUID branchId,
-                                      @Param("search") String search,
+                                      @Param("searchPattern") String searchPattern,
                                       Pageable pageable);
 
     @Query("""

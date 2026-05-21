@@ -27,12 +27,15 @@ public interface StandardRepository extends JpaRepository<Standard, UUID> {
     @Query("""
             select s from Standard s
             where s.isDeleted = false
-              and (:search is null or lower(s.name) like lower(concat('%', :search, '%'))
-                   or lower(cast(s.board as string)) like lower(concat('%', :search, '%'))
-                   or lower(s.code) like lower(concat('%', :search, '%')))
+              and (
+                    cast(:searchPattern as string) is null
+                    or lower(coalesce(s.name, '')) like cast(:searchPattern as string)
+                    or lower(coalesce(cast(s.board as string), '')) like cast(:searchPattern as string)
+                    or lower(coalesce(s.code, '')) like cast(:searchPattern as string)
+                  )
             order by s.sortOrder asc, s.name asc
             """)
-    Page<Standard> search(@Param("search") String search, Pageable pageable);
+    Page<Standard> search(@Param("searchPattern") String searchPattern, Pageable pageable);
 
     List<Standard> findByIsActiveTrueAndIsDeletedFalseOrderBySortOrderAscNameAsc();
 }

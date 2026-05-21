@@ -58,7 +58,7 @@ public class AcademicManagementService {
 
     @Transactional(readOnly = true)
     public PagedResponse<StandardResponse> listStandards(String search, int page, int size) {
-        Page<StandardResponse> result = standardRepository.search(trimToNull(search), PageRequest.of(
+        Page<StandardResponse> result = standardRepository.search(buildSearchPattern(search), PageRequest.of(
                         page, size, Sort.by(Sort.Direction.ASC, "sortOrder", "name")))
                 .map(this::toStandardResponse);
         return PagedResponse.from(result);
@@ -130,7 +130,7 @@ public class AcademicManagementService {
         UUID resolvedBranchId = resolveBranchIdForRead(branchId, currentBranchId);
         Page<AcademicCourseListItemResponse> result = batchRepository.searchAcademicCourses(
                         resolvedBranchId,
-                        trimToNull(search),
+                        buildSearchPattern(search),
                         PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "displayCode")))
                 .map(this::toAcademicCourseListItemResponse);
         return PagedResponse.from(result);
@@ -406,6 +406,10 @@ public class AcademicManagementService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String buildSearchPattern(String value) {
+        return StringUtils.hasText(value) ? "%" + value.trim().toLowerCase(Locale.ENGLISH) + "%" : null;
     }
 
     private String resolveCourseCode(Batch batch) {

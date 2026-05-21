@@ -30,6 +30,38 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
     Optional<Batch> findByIdAndIsActiveTrueAndIsDeletedFalse(UUID id);
 
+    @Query("""
+            select b from Batch b
+            join b.course c
+            left join c.standardRef s
+            where b.isDeleted = false
+              and (:branchId is null or b.branch.id = :branchId)
+              and (
+                    :search is null
+                    or lower(b.displayCode) like lower(concat('%', :search, '%'))
+                    or lower(b.name) like lower(concat('%', :search, '%'))
+                    or lower(c.name) like lower(concat('%', :search, '%'))
+                    or lower(c.standard) like lower(concat('%', :search, '%'))
+                    or lower(c.medium) like lower(concat('%', :search, '%'))
+                    or lower(cast(c.board as string)) like lower(concat('%', :search, '%'))
+              )
+            """)
+    Page<Batch> searchAcademicCourses(@Param("branchId") UUID branchId,
+                                      @Param("search") String search,
+                                      Pageable pageable);
+
+    @Query("""
+            select distinct b from Batch b
+            join fetch b.course c
+            left join fetch c.standardRef s
+            left join fetch c.subjects subjects
+            where b.id = :batchId
+              and b.isDeleted = false
+            """)
+    Optional<Batch> findAcademicCourseDetail(@Param("batchId") UUID batchId);
+
+    boolean existsByDisplayCode(String displayCode);
+
     long countByBranch_IdAndIsActiveTrueAndIsDeletedFalse(UUID branchId);
 
     @Query("""

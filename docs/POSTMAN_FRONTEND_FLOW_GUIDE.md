@@ -159,7 +159,7 @@ Body:
 }
 ```
 
-## 6. Branch and Batch Setup
+## 6. Branch Setup
 
 List branches:
 
@@ -185,31 +185,99 @@ Body:
 }
 ```
 
-Create batch:
+Batch creation is now part of the current academic course flow in section `6A` and no longer uses the removed `/api/batches` endpoint.
+
+## 6A. Current Academic Screens Flow
+
+The current frontend screens for Standards & Boards, Courses, and View Course should use the new screen-shaped APIs under `/api/academic`.
+
+List available boards:
 
 ```http
-POST {{baseUrl}}/api/batches
+GET {{baseUrl}}/api/academic/boards
+```
+
+Create a standard:
+
+```http
+POST {{baseUrl}}/api/academic/standards
 ```
 
 Body:
 
 ```json
 {
-  "branchId": "{{branchId}}",
-  "name": "9th CBSE Evening",
-  "standard": "9th",
-  "board": "CBSE",
-  "academicYear": "2026-2027",
-  "maxStudents": 40
+  "standard": "8th",
+  "board": "SSC"
 }
 ```
 
-Save:
+List standards for the table:
 
-```javascript
-const json = pm.response.json();
-pm.environment.set("batchId", json.data.id);
+```http
+GET {{baseUrl}}/api/academic/standards?page=0&size=10
 ```
+
+Get standard dropdown options for Add New Course:
+
+```http
+GET {{baseUrl}}/api/academic/standards/options
+```
+
+Create a course row for the current UI:
+
+```http
+POST {{baseUrl}}/api/academic/courses?branchId={{branchId}}
+```
+
+Body:
+
+```json
+{
+  "standard": "8th",
+  "board": "SSC",
+  "medium": "Marathi",
+  "academicYear": "2026-2027",
+  "courseName": "8th SSC",
+  "batchName": "Morning Batch",
+  "batchTiming": "MORNING",
+  "startTime": "07:30:00",
+  "endTime": "11:30:00"
+}
+```
+
+List courses for the grid:
+
+```http
+GET {{baseUrl}}/api/academic/courses?branchId={{branchId}}&page=0&size=10
+```
+
+Save the UUID from `data.items[0].id` when you need to open the View Course page.
+
+Get course detail:
+
+```http
+GET {{baseUrl}}/api/academic/courses/{{batchId}}?branchId={{branchId}}
+```
+
+Add a subject from the View Course modal:
+
+```http
+POST {{baseUrl}}/api/academic/courses/{{batchId}}/subjects?branchId={{branchId}}
+```
+
+Body:
+
+```json
+{
+  "subjectName": "Mathematics"
+}
+```
+
+Important:
+
+- Do not send `category`, `description`, `sortOrder`, `subjectGroups`, `room`, `classTeacherId`, `daysOfWeek`, `startDate`, `endDate`, or other non-visible fields from these screens.
+- Use `id` for API actions and the returned `courseId` / `standardId` / `subjectId` only for display in the table.
 
 ## 7. Teacher Flow
 

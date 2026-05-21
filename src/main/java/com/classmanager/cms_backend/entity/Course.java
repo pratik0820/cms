@@ -37,6 +37,10 @@ public class Course extends BaseEntity {
     @Column(name = "code", nullable = false, length = 40, unique = true)
     private String code;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "standard_id")
+    private Standard standardRef;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 30)
     private CourseCategory category;
@@ -52,8 +56,21 @@ public class Course extends BaseEntity {
     @Column(name = "academic_year", length = 10)
     private String academicYear;
 
+    @Column(name = "medium", length = 50)
+    private String medium;
+
     @Column(name = "description", length = 500)
     private String description;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "course_subjects",
+            joinColumns = @JoinColumn(name = "course_id"),
+            inverseJoinColumns = @JoinColumn(name = "subject_id")
+    )
+    @OrderBy("sortOrder ASC")
+    @Builder.Default
+    private List<Subject> subjects = new ArrayList<>();
 
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")

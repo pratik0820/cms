@@ -222,21 +222,20 @@ The current codebase has only these super-admin-phase APIs implemented:
 - `POST /api/super-admin/reports/export`
 - `GET /api/super-admin/reports/{reportId}/download`
 - `DELETE /api/super-admin/reports/{reportId}`
-- `GET /api/courses/subjects`
-- `POST /api/courses/subjects`
-- `PUT /api/courses/subjects/{subjectId}`
-- `DELETE /api/courses/subjects/{subjectId}`
-- `GET /api/courses`
-- `POST /api/courses`
-- `GET /api/courses/{courseId}`
-- `PUT /api/courses/{courseId}`
-- `DELETE /api/courses/{courseId}`
-- `POST /api/batches`
-- `GET /api/batches`
-- `GET /api/batches/by-branch/{branchId}`
-- `GET /api/batches/{batchId}`
-- `PUT /api/batches/{batchId}`
-- `DELETE /api/batches/{batchId}`
+- `GET /api/academic/boards`
+- `GET /api/academic/standards`
+- `GET /api/academic/standards/options`
+- `POST /api/academic/standards`
+- `PUT /api/academic/standards/{standardId}`
+- `DELETE /api/academic/standards/{standardId}`
+- `GET /api/academic/courses`
+- `POST /api/academic/courses`
+- `GET /api/academic/courses/{courseId}`
+- `PUT /api/academic/courses/{courseId}`
+- `DELETE /api/academic/courses/{courseId}`
+- `POST /api/academic/courses/{courseId}/subjects`
+- `PUT /api/academic/courses/{courseId}/subjects/{subjectId}`
+- `DELETE /api/academic/courses/{courseId}/subjects/{subjectId}`
 - `POST /api/enrolments`
 - `GET /api/enrolments/{enrolmentId}`
 - `GET /api/enrolments/student/{studentId}`
@@ -2791,7 +2790,248 @@ The remaining APIs in this document are the approved super-admin-phase contract 
 
 ---
 
-## 4.6 Courses, Batches and Student Enrolment APIs
+## 4.5A Academic Management Screen APIs
+
+> Status: `IMPLEMENTED`
+> These are the current frontend-aligned APIs for the Standards & Boards, Courses, and View Course screens.
+> Use these endpoints for the present UI. The older `/api/courses` and `/api/batches` catalogue-style APIs have been removed so the application has a single academic contract.
+
+### Screen Contract Rules
+
+- Only send the fields visible in the current screens.
+- `branchId` is not part of any form payload. For list and create flows it is resolved from the logged-in user's branch, or can be passed as a query parameter when a super admin is working across branches from the global branch filter.
+- Standards are managed separately from courses.
+- A row in the Courses screen is the UI-level "course offering": course details plus its batch timing.
+- Subjects are managed inside a course detail page, not as a global screen payload.
+
+### Standards & Boards Screen
+
+#### List boards
+
+- Endpoint: `GET /api/academic/boards`
+- Purpose: Populate board dropdowns.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "code": "SSC", "label": "SSC (Maharashtra State Board)" },
+    { "code": "CBSE", "label": "CBSE" },
+    { "code": "ICSE", "label": "ICSE" },
+    { "code": "HSC", "label": "HSC (Maharashtra State Board)" }
+  ]
+}
+```
+
+#### List standards
+
+- Endpoint: `GET /api/academic/standards?page=0&size=10&search=8th`
+- Purpose: Populate the Standards table.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "standardId": "STD0001",
+        "standard": "8th",
+        "board": "SSC",
+        "boardLabel": "SSC (Maharashtra State Board)",
+        "status": "Active"
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Create standard
+
+- Endpoint: `POST /api/academic/standards`
+- Purpose: Back the Add Standard modal.
+
+**Request**
+
+```json
+{
+  "standard": "8th",
+  "board": "SSC"
+}
+```
+
+#### Update standard
+
+- Endpoint: `PUT /api/academic/standards/{standardId}`
+- Purpose: Edit a standard row.
+
+**Request**
+
+```json
+{
+  "standard": "9th",
+  "board": "CBSE"
+}
+```
+
+#### Delete standard
+
+- Endpoint: `DELETE /api/academic/standards/{standardId}`
+
+#### Standard dropdown options
+
+- Endpoint: `GET /api/academic/standards/options`
+- Purpose: Fill the Standard dropdown in Add New Course.
+
+### Courses Screen
+
+#### List courses
+
+- Endpoint: `GET /api/academic/courses?page=0&size=10&search=ssc&branchId=<optional-uuid>`
+- Purpose: Populate the Courses table.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "batch-uuid",
+        "courseId": "CRS0001",
+        "standard": "8th",
+        "board": "SSC (Maharashtra State Board)",
+        "medium": "Marathi",
+        "academicYear": "2026-2027",
+        "courseName": "8th SSC",
+        "batchName": "Morning Batch",
+        "batchTiming": "07:30 AM - 11:30 AM"
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Create course
+
+- Endpoint: `POST /api/academic/courses?branchId=<optional-uuid>`
+- Purpose: Back the Add New Course screen.
+
+**Request**
+
+```json
+{
+  "standard": "8th",
+  "board": "SSC",
+  "medium": "Marathi",
+  "academicYear": "2026-2027",
+  "courseName": "8th SSC",
+  "batchName": "Morning Batch",
+  "batchTiming": "MORNING",
+  "startTime": "07:30:00",
+  "endTime": "11:30:00"
+}
+```
+
+#### Get course detail
+
+- Endpoint: `GET /api/academic/courses/{courseId}?branchId=<optional-uuid>`
+- Purpose: Back the View Course screen.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "batch-uuid",
+    "courseId": "CRS0001",
+    "standard": "8th",
+    "board": "SSC (Maharashtra State Board)",
+    "medium": "Marathi",
+    "academicYear": "2026-2027",
+    "courseName": "8th SSC",
+    "batchName": "Morning Batch",
+    "batchTiming": "07:30 AM - 11:30 AM",
+    "startTime": "07:30:00",
+    "endTime": "11:30:00",
+    "subjects": [
+      {
+        "id": "subject-uuid",
+        "subjectId": "SUB0001",
+        "subjectName": "Mathematics",
+        "subjectCode": "MATHS",
+        "status": "Active"
+      }
+    ]
+  }
+}
+```
+
+#### Update course
+
+- Endpoint: `PUT /api/academic/courses/{courseId}?branchId=<optional-uuid>`
+- Purpose: Back the Edit Course screen.
+- Request body: same as create course.
+
+#### Delete course
+
+- Endpoint: `DELETE /api/academic/courses/{courseId}?branchId=<optional-uuid>`
+
+### View Course Subject Actions
+
+#### Add subject
+
+- Endpoint: `POST /api/academic/courses/{courseId}/subjects?branchId=<optional-uuid>`
+
+**Request**
+
+```json
+{
+  "subjectName": "Mathematics"
+}
+```
+
+#### Update subject
+
+- Endpoint: `PUT /api/academic/courses/{courseId}/subjects/{subjectId}?branchId=<optional-uuid>`
+
+**Request**
+
+```json
+{
+  "subjectName": "Advanced Mathematics"
+}
+```
+
+#### Delete subject
+
+- Endpoint: `DELETE /api/academic/courses/{courseId}/subjects/{subjectId}?branchId=<optional-uuid>`
+
+### Notes for Frontend and QA
+
+- Use the current screen APIs above for new integration work.
+- `courseId`, `standardId`, and `subjectId` in these responses are display IDs for the tables. The `id` field is the real UUID to use for edit, view, and delete actions.
+- The screen payloads intentionally omit category, description, sort order, room, class teacher, subject groups, and other non-visible metadata.
+- The API remains extensible. Future fields can be added without changing the present screen contract.
+
+
+---
+
+## 4.6 Student Enrolment APIs
 
 > Status: `IMPLEMENTED`
 > These APIs implement the full academic catalogue â€” subjects, courses, subject groups, batches, and student enrolments with manually entered fees.

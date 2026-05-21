@@ -19,6 +19,9 @@ import lombok.*;
 @Builder
 public class Subject extends BaseEntity {
 
+    @Column(name = "display_code", length = 20, unique = true)
+    private String displayCode;
+
     @Column(name = "code", nullable = false, length = 40, unique = true)
     private String code;
 

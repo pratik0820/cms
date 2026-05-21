@@ -36,9 +36,8 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
     boolean existsByCodeAndIsDeletedFalse(String code);
 
     /**
-     * Fetch course with subject groups eagerly.
-     * Subject group subjects are loaded lazily within the same transaction
-     * (see CourseService.getCourseDetail which is @Transactional).
+     * Fetch course with subject groups eagerly for enrolment flows that still
+     * use subject-group based selection.
      */
     @Query("""
             SELECT DISTINCT c FROM Course c

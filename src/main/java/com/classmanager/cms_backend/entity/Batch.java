@@ -36,6 +36,9 @@ public class Batch extends BaseEntity {
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
+    @Column(name = "display_code", length = 20, unique = true)
+    private String displayCode;
+
     /** Display name, e.g. "8th CBSE Evening 2026-27". Auto-generated if blank. */
     @Column(name = "name", nullable = false, length = 200)
     private String name;

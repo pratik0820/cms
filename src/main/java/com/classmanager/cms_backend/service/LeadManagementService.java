@@ -51,7 +51,7 @@ public class LeadManagementService {
     private final StudentRepository studentRepository;
     private final OperationalRecordRepository operationalRecordRepository;
     private final StudentEnrolmentService studentEnrolmentService;
-    private final CourseService courseService;
+    private final SubjectResponseMapper subjectResponseMapper;
 
     @Transactional(readOnly = true)
     public LeadManagementResponse getLeads(String search,
@@ -380,7 +380,7 @@ public class LeadManagementService {
                 .courseName(lead.getCourse() != null ? lead.getCourse().getName() : null)
                 .batchId(lead.getBatch() != null ? lead.getBatch().getId() : null)
                 .batchName(lead.getBatch() != null ? lead.getBatch().getName() : null)
-                .subjects(lead.getSubjects().stream().map(courseService::toSubjectResponse).toList())
+                .subjects(lead.getSubjects().stream().map(subjectResponseMapper::toSubjectResponse).toList())
                 .expectedAdmissionYear(lead.getExpectedAdmissionYear())
                 .preferredAdmissionDate(lead.getPreferredAdmissionDate())
                 .preferredContactTime(lead.getPreferredContactTime())

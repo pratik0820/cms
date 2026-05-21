@@ -20,4 +20,8 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
     Optional<Subject> findByIdAndIsActiveTrueAndIsDeletedFalse(UUID id);
 
     boolean existsByCodeIgnoreCaseAndIsDeletedFalse(String code);
+
+    boolean existsByDisplayNameIgnoreCaseAndIsDeletedFalse(String displayName);
+
+    boolean existsByDisplayCodeAndIsDeletedFalse(String displayCode);
 }

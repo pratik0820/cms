@@ -41,7 +41,7 @@ public class StudentEnrolmentService {
     private final StudentRepository studentRepository;
     private final BatchRepository batchRepository;
     private final SubjectRepository subjectRepository;
-    private final CourseService courseService;
+    private final SubjectResponseMapper subjectResponseMapper;
 
     @Transactional
     public StudentEnrolmentResponse createEnrolment(CreateEnrolmentRequest request) {
@@ -229,7 +229,7 @@ public class StudentEnrolmentService {
         BigDecimal totalPending = e.getAgreedTotalFee().subtract(totalPaid);
 
         List<SubjectResponse> subjectResponses = e.getSubjects().stream()
-                .map(courseService::toSubjectResponse)
+                .map(subjectResponseMapper::toSubjectResponse)
                 .toList();
 
         List<EnrolmentInstalmentResponse> instalmentResponses = e.getInstalments().stream()

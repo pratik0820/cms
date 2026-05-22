@@ -6,6 +6,8 @@ import com.classmanager.cms_backend.dto.request.UpdateTeacherStatusRequest;
 import com.classmanager.cms_backend.dto.response.TeacherManagementResponse;
 import com.classmanager.cms_backend.dto.response.TeacherResponse;
 import com.classmanager.cms_backend.entity.Branch;
+import com.classmanager.cms_backend.entity.Batch;
+import com.classmanager.cms_backend.entity.Course;
 import com.classmanager.cms_backend.entity.OperationalRecord;
 import com.classmanager.cms_backend.entity.Role;
 import com.classmanager.cms_backend.entity.Subject;
@@ -16,6 +18,8 @@ import com.classmanager.cms_backend.exception.BadRequestException;
 import com.classmanager.cms_backend.exception.ResourceAlreadyExistsException;
 import com.classmanager.cms_backend.exception.ResourceNotFoundException;
 import com.classmanager.cms_backend.repository.BranchRepository;
+import com.classmanager.cms_backend.repository.BatchRepository;
+import com.classmanager.cms_backend.repository.CourseRepository;
 import com.classmanager.cms_backend.repository.OperationalRecordRepository;
 import com.classmanager.cms_backend.repository.RefreshTokenRepository;
 import com.classmanager.cms_backend.repository.RoleRepository;
@@ -35,6 +39,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -49,6 +54,8 @@ public class SuperAdminTeacherService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final BranchRepository branchRepository;
+    private final CourseRepository courseRepository;
+    private final BatchRepository batchRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OperationalRecordRepository operationalRecordRepository;
@@ -60,6 +67,8 @@ public class SuperAdminTeacherService {
                                                  UUID branchId,
                                                  String subject,
                                                  UUID subjectId,
+                                                 UUID courseId,
+                                                 UUID batchId,
                                                  int page,
                                                  int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
@@ -69,6 +78,8 @@ public class SuperAdminTeacherService {
                 branchId,
                 trimToNull(subject),
                 subjectId,
+                courseId,
+                batchId,
                 pageable
         );
 
@@ -112,7 +123,10 @@ public class SuperAdminTeacherService {
         Branch branch = loadBranch(request.getBranchId());
         Role teacherRole = loadTeacherRole();
         User creator = loadUser(createdByUserId);
+        List<Course> courses = resolveCourses(request.getCourseIds());
+        List<Batch> batches = resolveBatches(request.getBatchIds());
         List<Subject> catalogSubjects = resolveCatalogSubjects(request.getSubjectIds());
+        validateAcademicMappings(branch, courses, batches, catalogSubjects);
         List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
         User user = User.builder()
@@ -140,6 +154,8 @@ public class SuperAdminTeacherService {
                 .experienceYears(request.getExperienceYears())
                 .subjects(subjects)
                 .catalogSubjects(catalogSubjects)
+                .courses(courses)
+                .batches(batches)
                 .specialization(trimToNull(request.getSpecialization()))
                 .joiningDate(request.getJoiningDate())
                 .employmentType(request.getEmploymentType().trim())
@@ -165,7 +181,10 @@ public class SuperAdminTeacherService {
         handleOptionalPasswordUpdate(user, request.getPassword(), request.getConfirmPassword());
 
         Branch branch = loadBranch(request.getBranchId());
+        List<Course> courses = resolveCourses(request.getCourseIds());
+        List<Batch> batches = resolveBatches(request.getBatchIds());
         List<Subject> catalogSubjects = resolveCatalogSubjects(request.getSubjectIds());
+        validateAcademicMappings(branch, courses, batches, catalogSubjects);
         List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
         user.setFullName(request.getFullName().trim());
@@ -186,6 +205,8 @@ public class SuperAdminTeacherService {
         teacher.setExperienceYears(request.getExperienceYears());
         teacher.setSubjects(subjects);
         teacher.setCatalogSubjects(catalogSubjects);
+        teacher.setCourses(courses);
+        teacher.setBatches(batches);
         teacher.setSpecialization(trimToNull(request.getSpecialization()));
         teacher.setJoiningDate(request.getJoiningDate());
         teacher.setEmploymentType(request.getEmploymentType().trim());
@@ -275,6 +296,10 @@ public class SuperAdminTeacherService {
                 .experienceYears(teacher.getExperienceYears())
                 .subjects(resolveResponseSubjectNames(teacher))
                 .subjectIds(teacher.getCatalogSubjects().stream().map(Subject::getId).toList())
+                .courseIds(teacher.getCourses().stream().map(Course::getId).toList())
+                .courseNames(teacher.getCourses().stream().map(Course::getName).toList())
+                .batchIds(teacher.getBatches().stream().map(Batch::getId).toList())
+                .batchNames(teacher.getBatches().stream().map(Batch::getName).toList())
                 .specialization(teacher.getSpecialization())
                 .joiningDate(teacher.getJoiningDate())
                 .employmentType(teacher.getEmploymentType())
@@ -332,6 +357,66 @@ public class SuperAdminTeacherService {
                 .map(subjectId -> subjectRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(subjectId)
                         .orElseThrow(() -> new ResourceNotFoundException("Subject", subjectId)))
                 .toList();
+    }
+
+    private List<Course> resolveCourses(List<UUID> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            return List.of();
+        }
+        return courseIds.stream()
+                .distinct()
+                .map(courseId -> courseRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(courseId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Course", courseId)))
+                .toList();
+    }
+
+    private List<Batch> resolveBatches(List<UUID> batchIds) {
+        if (batchIds == null || batchIds.isEmpty()) {
+            return List.of();
+        }
+        return batchIds.stream()
+                .distinct()
+                .map(batchId -> batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(batchId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId)))
+                .toList();
+    }
+
+    private void validateAcademicMappings(Branch branch,
+                                          List<Course> courses,
+                                          List<Batch> batches,
+                                          List<Subject> catalogSubjects) {
+        List<Course> effectiveCourses = new ArrayList<>(courses);
+        for (Batch batch : batches) {
+            if (!batch.getBranch().getId().equals(branch.getId())) {
+                throw new BadRequestException("Selected batches must belong to the same branch as the teacher.", "INVALID_BATCH_BRANCH");
+            }
+            if (effectiveCourses.stream().noneMatch(course -> course.getId().equals(batch.getCourse().getId()))) {
+                effectiveCourses.add(batch.getCourse());
+            }
+        }
+
+        if (!courses.isEmpty()) {
+            for (Batch batch : batches) {
+                boolean belongsToSelectedCourse = courses.stream()
+                        .anyMatch(course -> course.getId().equals(batch.getCourse().getId()));
+                if (!belongsToSelectedCourse) {
+                    throw new BadRequestException("Selected batches must belong to one of the selected courses.", "INVALID_BATCH_COURSE");
+                }
+            }
+        }
+
+        if (!effectiveCourses.isEmpty() && !catalogSubjects.isEmpty()) {
+            for (Subject subject : catalogSubjects) {
+                boolean subjectMappedToCourse = effectiveCourses.stream()
+                        .flatMap(course -> course.getSubjects().stream())
+                        .anyMatch(mappedSubject -> mappedSubject.getId().equals(subject.getId()));
+                if (!subjectMappedToCourse) {
+                    throw new BadRequestException(
+                            "Selected subjects must belong to the selected courses.",
+                            "INVALID_COURSE_SUBJECT_MAPPING");
+                }
+            }
+        }
     }
 
     private List<String> resolveSubjectNames(List<String> legacySubjects, List<Subject> catalogSubjects) {

@@ -295,11 +295,22 @@ Body:
   "email": "rahul.sharma@greenfield.com",
   "phone": "9876543212",
   "qualification": "M.Sc., B.Ed.",
+  "courseIds": ["{{courseId}}"],
+  "subjectIds": ["{{subjectId}}"],
+  "batchIds": ["{{batchId}}"],
   "joiningDate": "2026-05-01",
   "hourlyRate": 500,
   "branchId": "{{branchId}}"
 }
 ```
+
+Teacher mapping rule for the current academic setup:
+
+- frontend selects one or more courses first
+- for each selected course, call `GET /api/academic/courses/{courseId}` and read `data.subjects`
+- send selected subject UUIDs in `subjectIds`
+- optionally send assigned batches in `batchIds`
+- selected batches must belong to the same branch and selected course set
 
 Save:
 

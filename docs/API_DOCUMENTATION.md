@@ -1156,7 +1156,9 @@ No payload.
 |---|---|---:|---|
 | `branchId` | UUID | No | Filters teachers by branch. |
 | `subject` | string | No | Filters by legacy subject label, catalogue display name, or subject code. |
-| `subjectId` | UUID | No | Filters by canonical subject catalogue ID from `GET /api/courses/subjects`. |
+| `subjectId` | UUID | No | Filters by canonical subject catalogue ID returned inside `GET /api/academic/courses/{courseId}`. |
+| `courseId` | UUID | No | Filters by assigned canonical course. |
+| `batchId` | UUID | No | Filters by assigned canonical batch. |
 | `isActive` | boolean | No | Filters active or inactive teacher accounts. |
 | `search` | string | No | Searches by name, email, or phone. |
 | `page` | integer | No | Table page index. |
@@ -1190,6 +1192,18 @@ No payload.
         "subjectIds": [
           "11111111-1111-1111-1111-111111111111",
           "22222222-2222-2222-2222-222222222222"
+        ],
+        "courseIds": [
+          "33333333-3333-3333-3333-333333333333"
+        ],
+        "courseNames": [
+          "8th SSC"
+        ],
+        "batchIds": [
+          "44444444-4444-4444-4444-444444444444"
+        ],
+        "batchNames": [
+          "Morning Batch"
         ],
         "specialization": "Algebra",
         "joiningDate": "2026-05-08",
@@ -1236,11 +1250,16 @@ No payload.
   "profilePhotoUrl": "https://cdn.example.com/teacher.jpg",
   "qualification": "M.Sc. Mathematics",
   "experienceYears": 6,
+  "courseIds": [
+    "33333333-3333-3333-3333-333333333333"
+  ],
   "subjectIds": [
     "11111111-1111-1111-1111-111111111111",
     "22222222-2222-2222-2222-222222222222"
   ],
-  "subjects": ["Mathematics", "Physics"],
+  "batchIds": [
+    "44444444-4444-4444-4444-444444444444"
+  ],
   "specialization": "Algebra",
   "joiningDate": "2026-05-08",
   "employmentType": "FULL_TIME",
@@ -1266,7 +1285,9 @@ No payload.
 | `profilePhotoUrl` | string | No | Teacher avatar for table and profile views. |
 | `qualification` | string | Yes | Academic qualification shown in teacher records. |
 | `experienceYears` | integer | No | Used in teacher listing and profile overview. |
-| `subjectIds` | array[UUID] | Preferred | Canonical subject catalogue links from `GET /api/courses/subjects`. Use this for new screens. |
+| `courseIds` | array[UUID] | Recommended | Canonical courses selected by the admin. Use course IDs from `GET /api/academic/courses`. |
+| `subjectIds` | array[UUID] | Preferred | Canonical subjects selected after the frontend loads `subjects[]` from `GET /api/academic/courses/{courseId}`. |
+| `batchIds` | array[UUID] | Optional | Canonical batches assigned to the teacher. Every batch must belong to the teacher branch and to one of the selected courses when `courseIds` is sent. |
 | `subjects` | array[string] | Backward compatible | Legacy free-text subject labels. Required only when `subjectIds` is empty or omitted. |
 | `specialization` | string | No | Optional academic specialization detail. |
 | `joiningDate` | date | Yes | Used for teacher profile and payout timelines. |
@@ -1285,9 +1306,11 @@ No payload.
 2. Create `users` row with role `TEACHER`.
 3. Create `teachers` row linked to `user_id`.
 4. Store branch link and hourly rate.
-5. Persist catalogue subjects in `teacher_subject_assignments`.
-6. Keep legacy labels in `teacher_subjects` for older screens and easy display.
-7. Return teacher summary payload with both `subjects` and `subjectIds`.
+5. Persist course mappings in `teacher_course_assignments` when `courseIds` are provided.
+6. Persist batch mappings in `teacher_batch_assignments` when `batchIds` are provided.
+7. Persist catalogue subjects in `teacher_subject_assignments`.
+8. Keep legacy labels in `teacher_subjects` for older screens and easy display.
+9. Return teacher summary payload with `subjects`, `subjectIds`, `courseIds`, and `batchIds`.
 
 ## 11.3 Teacher Detail
 
@@ -1317,7 +1340,10 @@ Same shape as the create teacher payload, except `password` and `confirmPassword
 - if both password fields are omitted, password remains unchanged.
 - if one password field is provided, both must match.
 - email and login ID must remain unique across non-deleted users.
-- use `subjectIds` for catalogue-aligned updates; `subjects` remains supported for old payloads.
+- use `courseIds` + `subjectIds` for the current academic-linked flow.
+- the backend validates that selected `subjectIds` belong to the selected `courseIds`.
+- `batchIds` are optional, but when sent they must belong to the same branch and selected course set.
+- `subjects` remains supported for old payloads.
 
 ## 11.5 Change Teacher Status
 

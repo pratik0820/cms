@@ -41,6 +41,10 @@ public class UpdateTeacherRequest {
 
     private List<UUID> subjectIds;
 
+    private List<UUID> courseIds;
+
+    private List<UUID> batchIds;
+
     private String specialization;
 
     @NotNull(message = "Joining date is required")

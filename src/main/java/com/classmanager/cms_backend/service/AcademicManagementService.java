@@ -319,7 +319,7 @@ public class AcademicManagementService {
 
         return AcademicCourseDetailResponse.builder()
                 .id(batch.getId())
-                .courseId(String.valueOf(batch.getCourse()))
+                .courseId(String.valueOf(batch.getCourse().getId()))
                 .standard(course.getStandard())
                 .board(course.getBoard() != null ? course.getBoard().getDisplayName() : null)
                 .medium(course.getMedium())

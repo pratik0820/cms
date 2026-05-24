@@ -48,6 +48,13 @@ public class AcademicManagementController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(academicManagementService.listBoards()));
     }
 
+    @GetMapping("/subjects")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List all global active subjects for forms")
+    public ResponseEntity<ApiResponse<List<CourseSubjectResponse>>> listSubjects() {
+        return ResponseEntity.ok(ApiResponse.success(academicManagementService.listGlobalSubjects()));
+    }
+
     @GetMapping("/standards")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List standards and boards for the Standards & Boards screen")

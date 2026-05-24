@@ -350,35 +350,35 @@ public class SuperAdminTeacherService {
 
     private List<Subject> resolveCatalogSubjects(List<UUID> subjectIds) {
         if (subjectIds == null || subjectIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return subjectIds.stream()
                 .distinct()
                 .map(subjectId -> subjectRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(subjectId)
                         .orElseThrow(() -> new ResourceNotFoundException("Subject", subjectId)))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private List<Course> resolveCourses(List<UUID> courseIds) {
         if (courseIds == null || courseIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return courseIds.stream()
                 .distinct()
                 .map(courseId -> courseRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(courseId)
                         .orElseThrow(() -> new ResourceNotFoundException("Course", courseId)))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private List<Batch> resolveBatches(List<UUID> batchIds) {
         if (batchIds == null || batchIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return batchIds.stream()
                 .distinct()
                 .map(batchId -> batchRepository.findByIdAndIsActiveTrueAndIsDeletedFalse(batchId)
                         .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId)))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private void validateAcademicMappings(Branch branch,
@@ -421,18 +421,18 @@ public class SuperAdminTeacherService {
 
     private List<String> resolveSubjectNames(List<String> legacySubjects, List<Subject> catalogSubjects) {
         List<String> normalizedSubjects = legacySubjects == null
-                ? List.of()
+                ? new ArrayList<>()
                 : legacySubjects.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
                 .distinct()
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
 
         if (!catalogSubjects.isEmpty()) {
             return catalogSubjects.stream()
                     .map(Subject::getDisplayName)
                     .distinct()
-                    .toList();
+                    .collect(java.util.stream.Collectors.toList());
         }
         if (normalizedSubjects.isEmpty()) {
             throw new BadRequestException("At least one subject is required", "VALIDATION_ERROR");
@@ -444,9 +444,9 @@ public class SuperAdminTeacherService {
         if (teacher.getCatalogSubjects() != null && !teacher.getCatalogSubjects().isEmpty()) {
             return teacher.getCatalogSubjects().stream()
                     .map(Subject::getDisplayName)
-                    .toList();
+                    .collect(java.util.stream.Collectors.toList());
         }
-        return List.copyOf(teacher.getSubjects());
+        return new ArrayList<>(teacher.getSubjects());
     }
 
     private BigDecimal resolveHourlyRate(BigDecimal hourlyRate) {

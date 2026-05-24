@@ -2,12 +2,15 @@ package com.classmanager.cms_backend.controller;
 
 import com.classmanager.cms_backend.dto.request.ConvertLeadToAdmissionRequest;
 import com.classmanager.cms_backend.dto.request.CreateLeadRequest;
+import com.classmanager.cms_backend.dto.request.CreateLeadFollowUpRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadStatusRequest;
 import com.classmanager.cms_backend.dto.response.ApiResponse;
 import com.classmanager.cms_backend.dto.response.LeadConversionResponse;
 import com.classmanager.cms_backend.dto.response.LeadManagementResponse;
 import com.classmanager.cms_backend.dto.response.LeadResponse;
+import com.classmanager.cms_backend.dto.response.LeadFollowUpResponse;
+import com.classmanager.cms_backend.dto.response.LeadFollowUpPageResponse;
 import com.classmanager.cms_backend.service.LeadManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -101,5 +106,45 @@ public class SuperAdminLeadController extends BaseController {
     public ResponseEntity<ApiResponse<Void>> deleteLead(@PathVariable UUID leadId) {
         leadManagementService.deleteLead(leadId, currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Lead deleted successfully"));
+    }
+
+    @GetMapping("/follow-ups")
+    @Operation(summary = "Search and filter lead follow-ups")
+    public ResponseEntity<ApiResponse<LeadFollowUpPageResponse>> getFollowUps(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) String modeOfContact,
+            @RequestParam(required = false) LocalDateTime startDate,
+            @RequestParam(required = false) LocalDateTime endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                leadManagementService.getFollowUps(search, branchId, status, userId, modeOfContact, startDate, endDate, page, size)
+        ));
+    }
+
+    @PostMapping("/{leadId}/follow-ups")
+    @Operation(summary = "Add a follow-up record for a lead")
+    public ResponseEntity<ApiResponse<LeadFollowUpResponse>> createFollowUp(
+            @PathVariable UUID leadId,
+            @Valid @RequestBody CreateLeadFollowUpRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                leadManagementService.createFollowUp(leadId, request, currentUserId()),
+                "Follow-up added successfully"
+        ));
+    }
+
+    @GetMapping("/{leadId}/follow-ups")
+    @Operation(summary = "Get follow-up history for a specific lead")
+    public ResponseEntity<ApiResponse<List<LeadFollowUpResponse>>> getLeadFollowUps(
+            @PathVariable UUID leadId) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                leadManagementService.getLeadFollowUps(leadId)
+        ));
     }
 }

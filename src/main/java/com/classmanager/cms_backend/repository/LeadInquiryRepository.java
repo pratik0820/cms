@@ -27,8 +27,8 @@ public interface LeadInquiryRepository extends JpaRepository<LeadInquiry, UUID> 
             left join l.batch ba
             where l.isDeleted = false
               and (:branchId is null or b.id = :branchId)
-              and (:status is null or lower(l.status) = lower(:status))
-              and (:leadSource is null or lower(l.leadSource) = lower(:leadSource))
+              and (:status is null or lower(l.status) = lower(cast(:status as string)))
+              and (:leadSource is null or lower(l.leadSource) = lower(cast(:leadSource as string)))
               and (:courseId is null or c.id = :courseId)
               and (:batchId is null or ba.id = :batchId)
               and (
@@ -56,7 +56,7 @@ public interface LeadInquiryRepository extends JpaRepository<LeadInquiry, UUID> 
             left join l.preferredBranch b
             where l.isDeleted = false
               and (:branchId is null or b.id = :branchId)
-              and (:status is null or lower(l.status) = lower(:status))
+              and (:status is null or lower(l.status) = lower(cast(:status as string)))
             """)
     long countByOptionalBranchAndStatus(@Param("branchId") UUID branchId, @Param("status") String status);
 

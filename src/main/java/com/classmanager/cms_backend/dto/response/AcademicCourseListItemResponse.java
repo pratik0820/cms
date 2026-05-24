@@ -9,6 +9,7 @@ import java.util.UUID;
 @Builder
 public class AcademicCourseListItemResponse {
     private UUID id;
+    private UUID courseUuid;
     private String courseId;
     private String standard;
     private String board;

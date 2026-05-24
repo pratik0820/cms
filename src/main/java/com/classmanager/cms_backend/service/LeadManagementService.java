@@ -3,11 +3,14 @@ package com.classmanager.cms_backend.service;
 import com.classmanager.cms_backend.dto.request.ConvertLeadToAdmissionRequest;
 import com.classmanager.cms_backend.dto.request.CreateEnrolmentRequest;
 import com.classmanager.cms_backend.dto.request.CreateLeadRequest;
+import com.classmanager.cms_backend.dto.request.CreateLeadFollowUpRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadStatusRequest;
 import com.classmanager.cms_backend.dto.response.LeadManagementResponse;
 import com.classmanager.cms_backend.dto.response.LeadConversionResponse;
 import com.classmanager.cms_backend.dto.response.LeadResponse;
+import com.classmanager.cms_backend.dto.response.LeadFollowUpResponse;
+import com.classmanager.cms_backend.dto.response.LeadFollowUpPageResponse;
 import com.classmanager.cms_backend.dto.response.StudentEnrolmentResponse;
 import com.classmanager.cms_backend.entity.*;
 import com.classmanager.cms_backend.enums.BoardType;
@@ -241,11 +244,14 @@ public class LeadManagementService {
         lead.setMobileNumber(required(request.getMobileNumber(), "Mobile number is required"));
         lead.setLeadSource(required(request.getLeadSource(), "Lead source is required"));
         lead.setPreferredBranch(resolveBranch(request.getPreferredBranchId()));
+        lead.setInquiryFor(trimToNull(request.getInquiryFor()));
         lead.setCourse(resolveCourse(request.getCourseId()));
         lead.setBatch(resolveBatch(request.getBatchId()));
         lead.setSubjects(resolveSubjects(request.getSubjectIds()));
+        lead.setRecommendedSubjects(resolveSubjects(request.getRecommendedSubjectIds()));
         applySharedFields(lead, request);
         lead.setAssignedToUser(resolveUser(request.getAssignedToUserId()));
+        lead.setCounsellorUser(resolveUser(request.getCounsellorUserId()));
     }
 
     private void applyUpdateFields(LeadInquiry lead, UpdateLeadRequest request) {
@@ -253,11 +259,14 @@ public class LeadManagementService {
         if (request.getMobileNumber() != null) lead.setMobileNumber(required(request.getMobileNumber(), "Mobile number is required"));
         if (request.getLeadSource() != null) lead.setLeadSource(required(request.getLeadSource(), "Lead source is required"));
         if (request.getPreferredBranchId() != null) lead.setPreferredBranch(resolveBranch(request.getPreferredBranchId()));
+        if (request.getInquiryFor() != null) lead.setInquiryFor(trimToNull(request.getInquiryFor()));
         if (request.getCourseId() != null) lead.setCourse(resolveCourse(request.getCourseId()));
         if (request.getBatchId() != null) lead.setBatch(resolveBatch(request.getBatchId()));
         if (request.getSubjectIds() != null) lead.setSubjects(resolveSubjects(request.getSubjectIds()));
+        if (request.getRecommendedSubjectIds() != null) lead.setRecommendedSubjects(resolveSubjects(request.getRecommendedSubjectIds()));
         applySharedFields(lead, request);
         if (request.getAssignedToUserId() != null) lead.setAssignedToUser(resolveUser(request.getAssignedToUserId()));
+        if (request.getCounsellorUserId() != null) lead.setCounsellorUser(resolveUser(request.getCounsellorUserId()));
     }
 
     private void applySharedFields(LeadInquiry lead, Object request) {
@@ -273,14 +282,19 @@ public class LeadManagementService {
             lead.setLastClassCompleted(trimToNull(r.getLastClassCompleted()));
             lead.setLastExamPercentage(trimToNull(r.getLastExamPercentage()));
             lead.setAddress(trimToNull(r.getAddress()));
+            lead.setMobileCountryCode(trimToNull(r.getMobileCountryCode()));
+            lead.setAlternateMobileCountryCode(trimToNull(r.getAlternateMobileCountryCode()));
             lead.setAlternateMobileNumber(trimToNull(r.getAlternateMobileNumber()));
             lead.setEmail(normalizeEmail(r.getEmail()));
             lead.setFatherName(trimToNull(r.getFatherName()));
             lead.setMotherName(trimToNull(r.getMotherName()));
             lead.setGuardianName(trimToNull(r.getGuardianName()));
             lead.setRelation(trimToNull(r.getRelation()));
+            lead.setFatherMobileCountryCode(trimToNull(r.getFatherMobileCountryCode()));
             lead.setFatherMobileNumber(trimToNull(r.getFatherMobileNumber()));
+            lead.setMotherMobileCountryCode(trimToNull(r.getMotherMobileCountryCode()));
             lead.setMotherMobileNumber(trimToNull(r.getMotherMobileNumber()));
+            lead.setGuardianMobileCountryCode(trimToNull(r.getGuardianMobileCountryCode()));
             lead.setGuardianMobileNumber(trimToNull(r.getGuardianMobileNumber()));
             lead.setParentEmail(normalizeEmail(r.getParentEmail()));
             lead.setFatherOccupation(trimToNull(r.getFatherOccupation()));
@@ -295,6 +309,7 @@ public class LeadManagementService {
             lead.setModeOfContact(trimToNull(r.getModeOfContact()));
             lead.setBestDaysToContact(trimToNull(r.getBestDaysToContact()));
             lead.setCourseRecommended(trimToNull(r.getCourseRecommended()));
+            lead.setSubjectsSuggested(trimToNull(r.getSubjectsSuggested()));
             lead.setBatchSuggested(trimToNull(r.getBatchSuggested()));
             lead.setAdmissionLikelihood(trimToNull(r.getAdmissionLikelihood()));
             lead.setRemarks(trimToNull(r.getRemarks()));
@@ -311,14 +326,19 @@ public class LeadManagementService {
             if (r.getLastClassCompleted() != null) lead.setLastClassCompleted(trimToNull(r.getLastClassCompleted()));
             if (r.getLastExamPercentage() != null) lead.setLastExamPercentage(trimToNull(r.getLastExamPercentage()));
             if (r.getAddress() != null) lead.setAddress(trimToNull(r.getAddress()));
+            if (r.getMobileCountryCode() != null) lead.setMobileCountryCode(trimToNull(r.getMobileCountryCode()));
+            if (r.getAlternateMobileCountryCode() != null) lead.setAlternateMobileCountryCode(trimToNull(r.getAlternateMobileCountryCode()));
             if (r.getAlternateMobileNumber() != null) lead.setAlternateMobileNumber(trimToNull(r.getAlternateMobileNumber()));
             if (r.getEmail() != null) lead.setEmail(normalizeEmail(r.getEmail()));
             if (r.getFatherName() != null) lead.setFatherName(trimToNull(r.getFatherName()));
             if (r.getMotherName() != null) lead.setMotherName(trimToNull(r.getMotherName()));
             if (r.getGuardianName() != null) lead.setGuardianName(trimToNull(r.getGuardianName()));
             if (r.getRelation() != null) lead.setRelation(trimToNull(r.getRelation()));
+            if (r.getFatherMobileCountryCode() != null) lead.setFatherMobileCountryCode(trimToNull(r.getFatherMobileCountryCode()));
             if (r.getFatherMobileNumber() != null) lead.setFatherMobileNumber(trimToNull(r.getFatherMobileNumber()));
+            if (r.getMotherMobileCountryCode() != null) lead.setMotherMobileCountryCode(trimToNull(r.getMotherMobileCountryCode()));
             if (r.getMotherMobileNumber() != null) lead.setMotherMobileNumber(trimToNull(r.getMotherMobileNumber()));
+            if (r.getGuardianMobileCountryCode() != null) lead.setGuardianMobileCountryCode(trimToNull(r.getGuardianMobileCountryCode()));
             if (r.getGuardianMobileNumber() != null) lead.setGuardianMobileNumber(trimToNull(r.getGuardianMobileNumber()));
             if (r.getParentEmail() != null) lead.setParentEmail(normalizeEmail(r.getParentEmail()));
             if (r.getFatherOccupation() != null) lead.setFatherOccupation(trimToNull(r.getFatherOccupation()));
@@ -333,6 +353,7 @@ public class LeadManagementService {
             if (r.getModeOfContact() != null) lead.setModeOfContact(trimToNull(r.getModeOfContact()));
             if (r.getBestDaysToContact() != null) lead.setBestDaysToContact(trimToNull(r.getBestDaysToContact()));
             if (r.getCourseRecommended() != null) lead.setCourseRecommended(trimToNull(r.getCourseRecommended()));
+            if (r.getSubjectsSuggested() != null) lead.setSubjectsSuggested(trimToNull(r.getSubjectsSuggested()));
             if (r.getBatchSuggested() != null) lead.setBatchSuggested(trimToNull(r.getBatchSuggested()));
             if (r.getAdmissionLikelihood() != null) lead.setAdmissionLikelihood(trimToNull(r.getAdmissionLikelihood()));
             if (r.getRemarks() != null) lead.setRemarks(trimToNull(r.getRemarks()));
@@ -356,15 +377,20 @@ public class LeadManagementService {
                 .lastClassCompleted(lead.getLastClassCompleted())
                 .lastExamPercentage(lead.getLastExamPercentage())
                 .address(lead.getAddress())
+                .mobileCountryCode(lead.getMobileCountryCode())
                 .mobileNumber(lead.getMobileNumber())
+                .alternateMobileCountryCode(lead.getAlternateMobileCountryCode())
                 .alternateMobileNumber(lead.getAlternateMobileNumber())
                 .email(lead.getEmail())
                 .fatherName(lead.getFatherName())
                 .motherName(lead.getMotherName())
                 .guardianName(lead.getGuardianName())
                 .relation(lead.getRelation())
+                .fatherMobileCountryCode(lead.getFatherMobileCountryCode())
                 .fatherMobileNumber(lead.getFatherMobileNumber())
+                .motherMobileCountryCode(lead.getMotherMobileCountryCode())
                 .motherMobileNumber(lead.getMotherMobileNumber())
+                .guardianMobileCountryCode(lead.getGuardianMobileCountryCode())
                 .guardianMobileNumber(lead.getGuardianMobileNumber())
                 .parentEmail(lead.getParentEmail())
                 .fatherOccupation(lead.getFatherOccupation())
@@ -376,6 +402,7 @@ public class LeadManagementService {
                 .heardAboutUs(lead.getHeardAboutUs())
                 .preferredBranchId(lead.getPreferredBranch() != null ? lead.getPreferredBranch().getId() : null)
                 .preferredBranchName(lead.getPreferredBranch() != null ? lead.getPreferredBranch().getName() : null)
+                .inquiryFor(lead.getInquiryFor())
                 .courseId(lead.getCourse() != null ? lead.getCourse().getId() : null)
                 .courseName(lead.getCourse() != null ? lead.getCourse().getName() : null)
                 .batchId(lead.getBatch() != null ? lead.getBatch().getId() : null)
@@ -387,11 +414,15 @@ public class LeadManagementService {
                 .modeOfContact(lead.getModeOfContact())
                 .bestDaysToContact(lead.getBestDaysToContact())
                 .courseRecommended(lead.getCourseRecommended())
+                .recommendedSubjects(lead.getRecommendedSubjects().stream().map(subjectResponseMapper::toSubjectResponse).toList())
+                .subjectsSuggested(lead.getSubjectsSuggested())
                 .batchSuggested(lead.getBatchSuggested())
                 .admissionLikelihood(lead.getAdmissionLikelihood())
                 .remarks(lead.getRemarks())
                 .nextFollowUpAt(lead.getNextFollowUpAt())
                 .status(lead.getStatus())
+                .counsellorUserId(lead.getCounsellorUser() != null ? lead.getCounsellorUser().getId() : null)
+                .counsellorName(lead.getCounsellorUser() != null ? lead.getCounsellorUser().getFullName() : null)
                 .assignedToUserId(lead.getAssignedToUser() != null ? lead.getAssignedToUser().getId() : null)
                 .assignedToName(lead.getAssignedToUser() != null ? lead.getAssignedToUser().getFullName() : null)
                 .convertedStudentId(lead.getConvertedStudent() != null ? lead.getConvertedStudent().getId() : null)
@@ -412,6 +443,15 @@ public class LeadManagementService {
                         .nextFollowUpAt(item.getNextFollowUpAt())
                         .statusAfter(item.getStatusAfter())
                         .createdByName(item.getCreatedByUser() != null ? item.getCreatedByUser().getFullName() : null)
+                        .spokeWith(item.getSpokeWith())
+                        .remarks(item.getRemarks())
+                        .nextFollowUpType(item.getNextFollowUpType())
+                        .nextFollowUpMode(item.getNextFollowUpMode())
+                        .nextFollowUpByUserId(item.getNextFollowUpByUser() != null ? item.getNextFollowUpByUser().getId() : null)
+                        .nextFollowUpByName(item.getNextFollowUpByUser() != null ? item.getNextFollowUpByUser().getFullName() : null)
+                        .reminder(item.getReminder())
+                        .priority(item.getPriority())
+                        .nextFollowUpNotes(item.getNextFollowUpNotes())
                         .build())
                 .toList();
     }
@@ -538,5 +578,140 @@ public class LeadManagementService {
             throw new BadRequestException(message, "VALIDATION_ERROR");
         }
         return value.trim();
+    }
+
+    @Transactional(readOnly = true)
+    public LeadFollowUpPageResponse getFollowUps(
+            String search,
+            UUID branchId,
+            String status,
+            UUID userId,
+            String modeOfContact,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            int page,
+            int size) {
+
+        String searchPattern = buildSearchPattern(search);
+        String trimmedStatus = trimToNull(status);
+        if (trimmedStatus != null) {
+            trimmedStatus = trimmedStatus.toUpperCase(Locale.ENGLISH);
+        }
+        String trimmedMode = trimToNull(modeOfContact);
+        LocalDateTime now = LocalDateTime.now();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "followUpAt"));
+        Page<LeadFollowUp> followUpPage = leadFollowUpRepository.searchFollowUps(
+                branchId, searchPattern, userId, trimmedMode, startDate, endDate, trimmedStatus, now, pageable
+        );
+
+        long total = leadFollowUpRepository.countFollowUps(branchId, searchPattern, userId, trimmedMode, startDate, endDate, null);
+        long completed = leadFollowUpRepository.countFollowUps(branchId, searchPattern, userId, trimmedMode, startDate, endDate, "COMPLETED");
+        long pending = leadFollowUpRepository.countFollowUps(branchId, searchPattern, userId, trimmedMode, startDate, endDate, "PENDING");
+        long converted = leadFollowUpRepository.countConvertedLeads(branchId, searchPattern, userId, trimmedMode, startDate, endDate);
+
+        double conversionPercent = total == 0 ? 0.0 : ((double) converted / total) * 100.0;
+        String conversionRate = String.format(Locale.ENGLISH, "%.2f%%", conversionPercent);
+
+        List<LeadFollowUpResponse> content = followUpPage.getContent().stream()
+                .map(this::toFollowUpResponse)
+                .toList();
+
+        return LeadFollowUpPageResponse.builder()
+                .summary(LeadFollowUpPageResponse.Summary.builder()
+                        .totalFollowUps(total)
+                        .completed(completed)
+                        .pending(pending)
+                        .conversionRate(conversionRate)
+                        .build())
+                .content(content)
+                .page(LeadFollowUpPageResponse.PageMeta.builder()
+                        .pageNumber(followUpPage.getNumber())
+                        .pageSize(followUpPage.getSize())
+                        .totalElements(followUpPage.getTotalElements())
+                        .totalPages(followUpPage.getTotalPages())
+                        .first(followUpPage.isFirst())
+                        .last(followUpPage.isLast())
+                        .build())
+                .build();
+    }
+
+    @Transactional
+    public LeadFollowUpResponse createFollowUp(UUID leadId, CreateLeadFollowUpRequest request, UUID actorUserId) {
+        LeadInquiry lead = loadLead(leadId);
+        User actor = loadUser(actorUserId);
+
+        String outcome = request.getOutcomeStatus().toUpperCase(Locale.ENGLISH);
+        if ("COMPLETED".equals(outcome)) {
+            if ("NEW".equals(lead.getStatus())) {
+                lead.setStatus("CONTACTED");
+            }
+        } else if ("PENDING".equals(outcome)) {
+            lead.setStatus("IN_FOLLOW_UP");
+        }
+
+        lead.setNextFollowUpAt(request.getNextFollowUpAt());
+        leadInquiryRepository.save(lead);
+
+        User nextFollowUpBy = resolveUser(request.getNextFollowUpByUserId());
+
+        LeadFollowUp followUp = LeadFollowUp.builder()
+                .lead(lead)
+                .followUpAt(request.getFollowUpAt())
+                .modeOfContact(request.getFollowUpMode())
+                .spokeWith(request.getSpokeWith())
+                .notes(request.getNotes())
+                .statusAfter(request.getOutcomeStatus())
+                .remarks(request.getRemarks())
+                .nextFollowUpAt(request.getNextFollowUpAt())
+                .nextFollowUpType(request.getNextFollowUpType())
+                .nextFollowUpMode(request.getNextFollowUpMode())
+                .nextFollowUpByUser(nextFollowUpBy)
+                .reminder(request.getReminder())
+                .priority(request.getPriority())
+                .nextFollowUpNotes(request.getNextFollowUpNotes())
+                .createdByUser(actor)
+                .build();
+
+        followUp = leadFollowUpRepository.save(followUp);
+
+        recordLeadActivity(lead, "LEAD_FOLLOW_UP_ADDED", lead.getStatus(),
+                "Follow-up added by " + actor.getFullName() + ". Status: " + request.getOutcomeStatus(), actorUserId);
+
+        return toFollowUpResponse(followUp);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeadFollowUpResponse> getLeadFollowUps(UUID leadId) {
+        LeadInquiry lead = loadLead(leadId);
+        return leadFollowUpRepository.findByLead_IdAndIsDeletedFalseOrderByFollowUpAtDesc(lead.getId()).stream()
+                .map(this::toFollowUpResponse)
+                .toList();
+    }
+
+    private LeadFollowUpResponse toFollowUpResponse(LeadFollowUp item) {
+        return LeadFollowUpResponse.builder()
+                .id(item.getId())
+                .leadId(item.getLead().getId())
+                .leadCode(item.getLead().getLeadCode())
+                .studentName(item.getLead().getStudentName())
+                .followUpAt(item.getFollowUpAt())
+                .followUpType(item.getModeOfContact())
+                .followUpMode(item.getModeOfContact())
+                .spokeWith(item.getSpokeWith())
+                .notes(item.getNotes())
+                .outcomeStatus(item.getStatusAfter())
+                .remarks(item.getRemarks())
+                .nextFollowUpAt(item.getNextFollowUpAt())
+                .nextFollowUpType(item.getNextFollowUpType())
+                .nextFollowUpMode(item.getNextFollowUpMode())
+                .nextFollowUpByUserId(item.getNextFollowUpByUser() != null ? item.getNextFollowUpByUser().getId() : null)
+                .nextFollowUpByName(item.getNextFollowUpByUser() != null ? item.getNextFollowUpByUser().getFullName() : null)
+                .reminder(item.getReminder())
+                .priority(item.getPriority())
+                .nextFollowUpNotes(item.getNextFollowUpNotes())
+                .followUpByName(item.getCreatedByUser() != null ? item.getCreatedByUser().getFullName() : null)
+                .createdAt(item.getCreatedAt())
+                .build();
     }
 }

@@ -25,6 +25,8 @@ public class LeadInquiry extends BaseEntity {
     @Column(name = "lead_code", nullable = false, unique = true, length = 40)
     private String leadCode;
 
+    // ─── Student Information ───────────────────────────────────────────────────
+
     @Column(name = "student_name", nullable = false)
     private String studentName;
 
@@ -61,14 +63,24 @@ public class LeadInquiry extends BaseEntity {
     @Column(name = "address", length = 2000)
     private String address;
 
+    // ─── Contact Information ───────────────────────────────────────────────────
+
+    @Column(name = "mobile_country_code", length = 10)
+    private String mobileCountryCode;
+
     @Column(name = "mobile_number", nullable = false, length = 40)
     private String mobileNumber;
+
+    @Column(name = "alternate_mobile_country_code", length = 10)
+    private String alternateMobileCountryCode;
 
     @Column(name = "alternate_mobile_number", length = 40)
     private String alternateMobileNumber;
 
     @Column(name = "email")
     private String email;
+
+    // ─── Parent / Guardian Information ────────────────────────────────────────
 
     @Column(name = "father_name")
     private String fatherName;
@@ -82,11 +94,20 @@ public class LeadInquiry extends BaseEntity {
     @Column(name = "relation", length = 80)
     private String relation;
 
+    @Column(name = "father_mobile_country_code", length = 10)
+    private String fatherMobileCountryCode;
+
     @Column(name = "father_mobile_number", length = 40)
     private String fatherMobileNumber;
 
+    @Column(name = "mother_mobile_country_code", length = 10)
+    private String motherMobileCountryCode;
+
     @Column(name = "mother_mobile_number", length = 40)
     private String motherMobileNumber;
+
+    @Column(name = "guardian_mobile_country_code", length = 10)
+    private String guardianMobileCountryCode;
 
     @Column(name = "guardian_mobile_number", length = 40)
     private String guardianMobileNumber;
@@ -106,6 +127,8 @@ public class LeadInquiry extends BaseEntity {
     @Column(name = "nationality", length = 80)
     private String nationality;
 
+    // ─── Lead Source & Inquiry Details ────────────────────────────────────────
+
     @Column(name = "lead_source", nullable = false, length = 120)
     private String leadSource;
 
@@ -118,6 +141,10 @@ public class LeadInquiry extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_branch_id")
     private Branch preferredBranch;
+
+    /** Inquiry type: NEW_ADMISSION, TRANSFER, OTHER */
+    @Column(name = "inquiry_for", length = 80)
+    private String inquiryFor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
@@ -151,8 +178,23 @@ public class LeadInquiry extends BaseEntity {
     @Column(name = "best_days_to_contact", length = 120)
     private String bestDaysToContact;
 
+    // ─── Counsellor's Recommendation ──────────────────────────────────────────
+
     @Column(name = "course_recommended")
     private String courseRecommended;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "lead_recommended_subjects",
+            joinColumns = @JoinColumn(name = "lead_id"),
+            inverseJoinColumns = @JoinColumn(name = "subject_id")
+    )
+    @Builder.Default
+    private List<Subject> recommendedSubjects = new ArrayList<>();
+
+    /** Free-text fallback for subjects suggested by counsellor */
+    @Column(name = "subjects_suggested", length = 2000)
+    private String subjectsSuggested;
 
     @Column(name = "batch_suggested")
     private String batchSuggested;
@@ -165,6 +207,13 @@ public class LeadInquiry extends BaseEntity {
 
     @Column(name = "next_follow_up_at")
     private LocalDateTime nextFollowUpAt;
+
+    /** The counsellor who completed section 4 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counsellor_user_id")
+    private User counsellorUser;
+
+    // ─── System / Status Fields ────────────────────────────────────────────────
 
     @Column(name = "status", nullable = false, length = 40)
     @Builder.Default

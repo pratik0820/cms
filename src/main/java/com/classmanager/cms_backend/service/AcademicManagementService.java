@@ -82,6 +82,14 @@ public class AcademicManagementService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CourseSubjectResponse> listGlobalSubjects() {
+        return subjectRepository.findByIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc()
+                .stream()
+                .map(this::toCourseSubjectResponse)
+                .toList();
+    }
+
     @Transactional
     public StandardResponse createStandard(CreateStandardRequest request) {
         String standardName = normalizeStandard(request.getStandard());
@@ -298,6 +306,7 @@ public class AcademicManagementService {
         Course course = batch.getCourse();
         return AcademicCourseListItemResponse.builder()
                 .id(batch.getId())
+                .courseUuid(course.getId())
                 .courseId(resolveCourseCode(batch))
                 .standard(course.getStandard())
                 .board(course.getBoard() != null ? course.getBoard().getDisplayName() : null)

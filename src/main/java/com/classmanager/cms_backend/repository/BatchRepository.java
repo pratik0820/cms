@@ -55,7 +55,7 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
             join fetch b.course c
             left join fetch c.standardRef s
             left join fetch c.subjects subjects
-            where b.id = :batchId
+            where (b.id = :batchId or c.id = :batchId)
               and b.isDeleted = false
             """)
     Optional<Batch> findAcademicCourseDetail(@Param("batchId") UUID batchId);

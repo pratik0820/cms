@@ -31,6 +31,7 @@ public interface LeadInquiryRepository extends JpaRepository<LeadInquiry, UUID> 
               and (:leadSource is null or lower(l.leadSource) = lower(cast(:leadSource as string)))
               and (:courseId is null or c.id = :courseId)
               and (:batchId is null or ba.id = :batchId)
+              and (:createdByUserId is null or l.createdByUser.id = :createdByUserId)
               and (
                     :searchPattern is null
                     or lower(l.leadCode) like :searchPattern
@@ -48,6 +49,7 @@ public interface LeadInquiryRepository extends JpaRepository<LeadInquiry, UUID> 
                                   @Param("leadSource") String leadSource,
                                   @Param("courseId") UUID courseId,
                                   @Param("batchId") UUID batchId,
+                                  @Param("createdByUserId") UUID createdByUserId,
                                   Pageable pageable);
 
     @Query("""

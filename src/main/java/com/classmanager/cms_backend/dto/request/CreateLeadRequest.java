@@ -2,8 +2,10 @@ package com.classmanager.cms_backend.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -108,4 +110,41 @@ public class CreateLeadRequest {
     // ─── Assignment ───────────────────────────────────────────────────────────
 
     private UUID assignedToUserId;
+
+    // ─── Fee & Scholarship Details ────────────────────────────────────────────
+
+    @PositiveOrZero
+    private BigDecimal totalBaseFee;
+
+    /** LUMPSUM or INSTALLMENTS */
+    private String paymentStructure;
+
+    /** Online, Cheque, Cash, GPay, etc. */
+    private String modeOfPayment;
+
+    private Boolean financialAssistanceRequired;
+    private Boolean externalScholarshipApplicable;
+    private String externalScholarshipDetails;
+
+    private String previousYearPercentage;
+
+    /** e.g. "15%" or "5000" */
+    private String meritScholarship;
+
+    private String additionalCategory;
+
+    @PositiveOrZero
+    private BigDecimal additionalConcessionAmount;
+
+    /** Computed summary label (e.g. "15% + ₹2,000") */
+    private String totalScholarshipSanctioned;
+
+    @PositiveOrZero
+    private BigDecimal finalPayableFee;
+
+    @PositiveOrZero
+    private BigDecimal tokenAmountPaid;
+
+    private String tokenPaymentMode;
+    private String tokenRemarks;
 }

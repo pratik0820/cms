@@ -89,9 +89,11 @@ public class Teacher extends BaseEntity {
     @Column(name = "salary_type")
     private String salaryType;
 
-    @Column(name = "hourly_rate", nullable = false)
-    @Builder.Default
-    private BigDecimal hourlyRate = BigDecimal.ZERO;
+    @Column(name = "monthly_salary")
+    private BigDecimal monthlySalary;
+
+    @Column(name = "hourly_rate")
+    private BigDecimal hourlyRate;
 
     @Column(name = "address", length = 2000)
     private String address;

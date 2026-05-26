@@ -55,6 +55,9 @@ public class CreateTeacherRequest {
 
     private String salaryType;
 
+    @PositiveOrZero(message = "Monthly salary cannot be negative")
+    private BigDecimal monthlySalary;
+
     @PositiveOrZero(message = "Hourly rate cannot be negative")
     private BigDecimal hourlyRate;
 

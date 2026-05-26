@@ -3,6 +3,7 @@ package com.classmanager.cms_backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -233,4 +234,76 @@ public class LeadInquiry extends BaseEntity {
 
     @Column(name = "converted_at")
     private LocalDateTime convertedAt;
+
+    // ─── Fee & Scholarship Details ─────────────────────────────────────────────
+
+    /** Standard total base fee for the recommended course (e.g. 64000) */
+    @Column(name = "total_base_fee", precision = 12, scale = 2)
+    private BigDecimal totalBaseFee;
+
+    /** LUMPSUM or INSTALLMENTS */
+    @Column(name = "payment_structure", length = 40)
+    private String paymentStructure;
+
+    /** Online, Cheque, Cash, GPay, etc. */
+    @Column(name = "mode_of_payment", length = 80)
+    private String modeOfPayment;
+
+    /** Does the student require financial assistance? */
+    @Column(name = "financial_assistance_required")
+    private Boolean financialAssistanceRequired;
+
+    /** Is the student eligible for a government/private scholarship? */
+    @Column(name = "external_scholarship_applicable")
+    private Boolean externalScholarshipApplicable;
+
+    /** Scholarship details if applicable (govt/private body, scheme name, etc.) */
+    @Column(name = "external_scholarship_details", length = 2000)
+    private String externalScholarshipDetails;
+
+    /** Student's previous year exam percentage used to determine merit scholarship */
+    @Column(name = "previous_year_percentage", length = 20)
+    private String previousYearPercentage;
+
+    /**
+     * Merit/KKPM scholarship – stored as a percentage string (e.g. "15%")
+     * or a flat amount string (e.g. "5000") depending on institute convention.
+     */
+    @Column(name = "merit_scholarship", length = 80)
+    private String meritScholarship;
+
+    /** Additional category concession label (e.g. "Sibling", "Staff Ward") */
+    @Column(name = "additional_category", length = 255)
+    private String additionalCategory;
+
+    /**
+     * Additional flat concession amount (e.g. 2000).
+     * Stored separately from merit scholarship so the counsellor can mix
+     * a % discount (A) with a flat deduction (B).
+     */
+    @Column(name = "additional_concession_amount", precision = 12, scale = 2)
+    private BigDecimal additionalConcessionAmount;
+
+    /**
+     * Total scholarship sanctioned = merit scholarship + additional concession.
+     * Stored as a descriptive string (e.g. "15% + ₹2,000") for display.
+     */
+    @Column(name = "total_scholarship_sanctioned", length = 255)
+    private String totalScholarshipSanctioned;
+
+    /** Final payable fee = totalBaseFee − all deductions (computed and stored) */
+    @Column(name = "final_payable_fee", precision = 12, scale = 2)
+    private BigDecimal finalPayableFee;
+
+    /** Token / booking amount paid on the day of inquiry */
+    @Column(name = "token_amount_paid", precision = 12, scale = 2)
+    private BigDecimal tokenAmountPaid;
+
+    /** Payment mode used for the token (may differ from main modeOfPayment) */
+    @Column(name = "token_payment_mode", length = 80)
+    private String tokenPaymentMode;
+
+    /** Counsellor remark about the token / seat confirmation */
+    @Column(name = "token_remarks", length = 2000)
+    private String tokenRemarks;
 }

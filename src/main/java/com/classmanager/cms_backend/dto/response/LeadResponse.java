@@ -104,11 +104,31 @@ public class LeadResponse {
     private String status;
     private UUID assignedToUserId;
     private String assignedToName;
+    private UUID createdByUserId;
+    private String createdByName;
     private UUID convertedStudentId;
     private LocalDateTime convertedAt;
     private List<FollowUpResponse> followUps;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // ─── Fee & Scholarship Details ────────────────────────────────────────────
+
+    private java.math.BigDecimal totalBaseFee;
+    private String paymentStructure;
+    private String modeOfPayment;
+    private Boolean financialAssistanceRequired;
+    private Boolean externalScholarshipApplicable;
+    private String externalScholarshipDetails;
+    private String previousYearPercentage;
+    private String meritScholarship;
+    private String additionalCategory;
+    private java.math.BigDecimal additionalConcessionAmount;
+    private String totalScholarshipSanctioned;
+    private java.math.BigDecimal finalPayableFee;
+    private java.math.BigDecimal tokenAmountPaid;
+    private String tokenPaymentMode;
+    private String tokenRemarks;
 
     @Data
     @Builder

@@ -2,6 +2,7 @@ package com.classmanager.cms_backend.service;
 
 import com.classmanager.cms_backend.dto.request.CreateStudentRequest;
 import com.classmanager.cms_backend.dto.request.CreateEnrolmentRequest;
+import com.classmanager.cms_backend.dto.request.GenerateStudentPasswordRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentStatusRequest;
 import com.classmanager.cms_backend.dto.response.StudentManagementResponse;
@@ -232,6 +233,47 @@ public class StudentManagementService {
         recordStudentActivity(Boolean.TRUE.equals(request.getIsActive()) ? "STUDENT_ACTIVATED" : "STUDENT_DEACTIVATED",
                 student, updatedByUserId, description);
         return toResponse(student);
+    }
+
+    @Transactional
+    public StudentResponse generateStudentPassword(UUID studentId, GenerateStudentPasswordRequest request, UUID actorUserId) {
+        validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
+
+        Student student = loadStudent(studentId);
+        String normalizedLoginId = normalizeRequired(request.getLoginId(), "Login ID is required");
+
+        if (student.getUser() != null) {
+            // Student already has a user — reset the password and update login ID
+            User user = student.getUser();
+            validateUniqueLoginIdForUpdate(user.getId(), normalizedLoginId);
+            user.setLoginId(normalizedLoginId);
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            user.setIsActive(true);
+            userRepository.save(user);
+            refreshTokenRepository.revokeAllForUser(user.getId(), LocalDateTime.now(), "PASSWORD_RESET_BY_ADMIN");
+        } else {
+            // Student was converted from lead without a user — create one now
+            validateUniqueLoginIdForCreate(normalizedLoginId);
+            Role studentRole = loadStudentRole();
+
+            User user = User.builder()
+                    .email(student.getEmail())
+                    .loginId(normalizedLoginId)
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .fullName(student.getName())
+                    .phone(student.getMobile())
+                    .branch(student.getBranch())
+                    .isActive(true)
+                    .roles(Set.of(studentRole))
+                    .build();
+            user = userRepository.save(user);
+            student.setUser(user);
+            studentRepository.save(student);
+        }
+
+        recordStudentActivity("STUDENT_PASSWORD_GENERATED", student, actorUserId,
+                "Student login credentials generated/reset by admin");
+        return toResponse(loadStudent(studentId));
     }
 
     @Transactional

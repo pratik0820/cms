@@ -129,6 +129,11 @@ public class SuperAdminTeacherService {
         validateAcademicMappings(branch, courses, batches, catalogSubjects);
         List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
+        String employmentType = normalizeEmploymentType(request.getEmploymentType());
+        String salaryType = resolveSalaryType(employmentType, request.getSalaryType());
+        BigDecimal monthlySalary = resolveMonthlySalary(employmentType, salaryType, request.getMonthlySalary());
+        BigDecimal hourlyRate = resolveHourlyRateForType(employmentType, salaryType, request.getHourlyRate());
+
         User user = User.builder()
                 .email(normalizedEmail)
                 .loginId(normalizedLoginId)
@@ -158,9 +163,10 @@ public class SuperAdminTeacherService {
                 .batches(batches)
                 .specialization(trimToNull(request.getSpecialization()))
                 .joiningDate(request.getJoiningDate())
-                .employmentType(request.getEmploymentType().trim())
-                .salaryType(trimToNull(request.getSalaryType()))
-                .hourlyRate(resolveHourlyRate(request.getHourlyRate()))
+                .employmentType(employmentType)
+                .salaryType(salaryType)
+                .monthlySalary(monthlySalary)
+                .hourlyRate(hourlyRate)
                 .address(trimToNull(request.getAddress()))
                 .isActive(true)
                 .createdByUser(creator)
@@ -187,6 +193,11 @@ public class SuperAdminTeacherService {
         validateAcademicMappings(branch, courses, batches, catalogSubjects);
         List<String> subjects = resolveSubjectNames(request.getSubjects(), catalogSubjects);
 
+        String employmentType = normalizeEmploymentType(request.getEmploymentType());
+        String salaryType = resolveSalaryType(employmentType, request.getSalaryType());
+        BigDecimal monthlySalary = resolveMonthlySalary(employmentType, salaryType, request.getMonthlySalary());
+        BigDecimal hourlyRate = resolveHourlyRateForType(employmentType, salaryType, request.getHourlyRate());
+
         user.setFullName(request.getFullName().trim());
         user.setEmail(normalizeRequired(request.getEmail(), "Email is required"));
         user.setPhone(request.getPhone().trim());
@@ -209,9 +220,10 @@ public class SuperAdminTeacherService {
         teacher.setBatches(batches);
         teacher.setSpecialization(trimToNull(request.getSpecialization()));
         teacher.setJoiningDate(request.getJoiningDate());
-        teacher.setEmploymentType(request.getEmploymentType().trim());
-        teacher.setSalaryType(trimToNull(request.getSalaryType()));
-        teacher.setHourlyRate(resolveHourlyRate(request.getHourlyRate()));
+        teacher.setEmploymentType(employmentType);
+        teacher.setSalaryType(salaryType);
+        teacher.setMonthlySalary(monthlySalary);
+        teacher.setHourlyRate(hourlyRate);
         teacher.setAddress(trimToNull(request.getAddress()));
         teacher = teacherRepository.save(teacher);
 
@@ -304,6 +316,7 @@ public class SuperAdminTeacherService {
                 .joiningDate(teacher.getJoiningDate())
                 .employmentType(teacher.getEmploymentType())
                 .salaryType(teacher.getSalaryType())
+                .monthlySalary(teacher.getMonthlySalary())
                 .hourlyRate(teacher.getHourlyRate())
                 .address(teacher.getAddress())
                 .branchId(branch.getId())
@@ -451,6 +464,52 @@ public class SuperAdminTeacherService {
 
     private BigDecimal resolveHourlyRate(BigDecimal hourlyRate) {
         return hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
+    }
+
+    private String normalizeEmploymentType(String employmentType) {
+        if (!StringUtils.hasText(employmentType)) {
+            throw new BadRequestException("Employment type is required", "VALIDATION_ERROR");
+        }
+        return employmentType.trim().toUpperCase();
+    }
+
+    /**
+     * Full-time teachers have no salary. Part-time teachers must have a salary type.
+     */
+    private String resolveSalaryType(String employmentType, String rawSalaryType) {
+        if ("FULL_TIME".equals(employmentType)) {
+            return null;
+        }
+        // PART_TIME (and any other future type) requires salary type
+        String salaryType = trimToNull(rawSalaryType);
+        if (salaryType == null) {
+            throw new BadRequestException("Salary type is required for part-time teachers", "VALIDATION_ERROR");
+        }
+        salaryType = salaryType.toUpperCase();
+        if (!"MONTHLY".equals(salaryType) && !"HOURLY".equals(salaryType)) {
+            throw new BadRequestException("Salary type must be MONTHLY or HOURLY", "VALIDATION_ERROR");
+        }
+        return salaryType;
+    }
+
+    private BigDecimal resolveMonthlySalary(String employmentType, String salaryType, BigDecimal monthlySalary) {
+        if (!"PART_TIME".equals(employmentType) || !"MONTHLY".equals(salaryType)) {
+            return null;
+        }
+        if (monthlySalary == null) {
+            throw new BadRequestException("Monthly salary is required for monthly salary type", "VALIDATION_ERROR");
+        }
+        return monthlySalary;
+    }
+
+    private BigDecimal resolveHourlyRateForType(String employmentType, String salaryType, BigDecimal hourlyRate) {
+        if (!"PART_TIME".equals(employmentType) || !"HOURLY".equals(salaryType)) {
+            return null;
+        }
+        if (hourlyRate == null) {
+            throw new BadRequestException("Hourly rate is required for hourly salary type", "VALIDATION_ERROR");
+        }
+        return hourlyRate;
     }
 
     private String normalize(String value) {

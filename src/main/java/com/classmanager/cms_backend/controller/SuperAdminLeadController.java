@@ -5,6 +5,7 @@ import com.classmanager.cms_backend.dto.request.CreateLeadRequest;
 import com.classmanager.cms_backend.dto.request.CreateLeadFollowUpRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadRequest;
 import com.classmanager.cms_backend.dto.request.UpdateLeadStatusRequest;
+import com.classmanager.cms_backend.dto.request.UpdateLeadFollowUpRequest;
 import com.classmanager.cms_backend.dto.response.ApiResponse;
 import com.classmanager.cms_backend.dto.response.LeadConversionResponse;
 import com.classmanager.cms_backend.dto.response.LeadManagementResponse;
@@ -42,11 +43,12 @@ public class SuperAdminLeadController extends BaseController {
             @RequestParam(required = false) String leadSource,
             @RequestParam(required = false) UUID courseId,
             @RequestParam(required = false) UUID batchId,
+            @RequestParam(required = false) UUID createdByUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         return ResponseEntity.ok(ApiResponse.success(leadManagementService.getLeads(
-                search, branchId, status, leadSource, courseId, batchId, page, size
+                search, branchId, status, leadSource, courseId, batchId, createdByUserId, page, size
         )));
     }
 
@@ -145,6 +147,18 @@ public class SuperAdminLeadController extends BaseController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 leadManagementService.getLeadFollowUps(leadId)
+        ));
+    }
+
+    @PutMapping("/follow-ups/{followUpId}")
+    @Operation(summary = "Update a follow-up record")
+    public ResponseEntity<ApiResponse<LeadFollowUpResponse>> updateFollowUp(
+            @PathVariable UUID followUpId,
+            @RequestBody UpdateLeadFollowUpRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                leadManagementService.updateFollowUp(followUpId, request, currentUserId()),
+                "Follow-up updated successfully"
         ));
     }
 }

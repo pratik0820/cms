@@ -1,0 +1,3 @@
+ALTER TABLE teachers
+ALTER COLUMN hourly_rate DROP NOT NULL,
+ALTER COLUMN hourly_rate DROP DEFAULT;

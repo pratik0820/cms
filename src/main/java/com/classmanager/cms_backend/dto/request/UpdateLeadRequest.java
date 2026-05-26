@@ -1,8 +1,10 @@
 package com.classmanager.cms_backend.dto.request;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -100,4 +102,29 @@ public class UpdateLeadRequest {
     // ─── Assignment ───────────────────────────────────────────────────────────
 
     private UUID assignedToUserId;
+
+    // ─── Fee & Scholarship Details ────────────────────────────────────────────
+
+    @PositiveOrZero
+    private BigDecimal totalBaseFee;
+    private String paymentStructure;
+    private String modeOfPayment;
+    private Boolean financialAssistanceRequired;
+    private Boolean externalScholarshipApplicable;
+    private String externalScholarshipDetails;
+    private String previousYearPercentage;
+    private String meritScholarship;
+    private String additionalCategory;
+
+    @PositiveOrZero
+    private BigDecimal additionalConcessionAmount;
+    private String totalScholarshipSanctioned;
+
+    @PositiveOrZero
+    private BigDecimal finalPayableFee;
+
+    @PositiveOrZero
+    private BigDecimal tokenAmountPaid;
+    private String tokenPaymentMode;
+    private String tokenRemarks;
 }

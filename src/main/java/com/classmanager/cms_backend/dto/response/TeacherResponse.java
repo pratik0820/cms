@@ -38,6 +38,7 @@ public class TeacherResponse {
     private LocalDate joiningDate;
     private String employmentType;
     private String salaryType;
+    private BigDecimal monthlySalary;
     private BigDecimal hourlyRate;
     private String address;
     private UUID branchId;

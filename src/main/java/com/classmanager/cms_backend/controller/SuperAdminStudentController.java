@@ -1,6 +1,7 @@
 package com.classmanager.cms_backend.controller;
 
 import com.classmanager.cms_backend.dto.request.CreateStudentRequest;
+import com.classmanager.cms_backend.dto.request.GenerateStudentPasswordRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentStatusRequest;
 import com.classmanager.cms_backend.dto.response.ApiResponse;
@@ -81,6 +82,16 @@ public class SuperAdminStudentController extends BaseController {
 
         StudentResponse response = studentManagementService.updateStudentStatus(studentId, request, currentUserId());
         return ResponseEntity.ok(ApiResponse.success(response, "Student status updated successfully"));
+    }
+
+    @PostMapping("/{studentId}/generate-password")
+    @Operation(summary = "Generate or reset a student's login password (for lead-converted students)")
+    public ResponseEntity<ApiResponse<StudentResponse>> generateStudentPassword(
+            @PathVariable UUID studentId,
+            @Valid @RequestBody GenerateStudentPasswordRequest request) {
+
+        StudentResponse response = studentManagementService.generateStudentPassword(studentId, request, currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(response, "Student login credentials generated successfully"));
     }
 
     @DeleteMapping("/{studentId}")

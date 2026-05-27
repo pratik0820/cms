@@ -1,0 +1,1 @@
+ALTER TABLE lead_inquiry_installments ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE NOT NULL;

@@ -1,6 +1,7 @@
 package com.classmanager.cms_backend.controller;
 
 import com.classmanager.cms_backend.dto.request.CreateStudentRequest;
+import com.classmanager.cms_backend.dto.request.GenerateStudentPasswordRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentRequest;
 import com.classmanager.cms_backend.dto.request.UpdateStudentStatusRequest;
 import com.classmanager.cms_backend.dto.response.ApiResponse;
@@ -30,7 +31,7 @@ import java.util.UUID;
 @RequestMapping("/api/super-admin/students")
 @RequiredArgsConstructor
 @Tag(name = "Super Admin - Student Management", description = "Student management APIs for the super admin phase")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class SuperAdminStudentController extends BaseController {
 
     private final StudentManagementService studentManagementService;
@@ -88,5 +89,15 @@ public class SuperAdminStudentController extends BaseController {
     public ResponseEntity<ApiResponse<Void>> deleteStudent(@PathVariable UUID studentId) {
         studentManagementService.deleteStudent(studentId, currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Student deleted successfully"));
+    }
+
+    @PostMapping("/{studentId}/generate-password")
+    @Operation(summary = "Generate or reset login credentials for a student")
+    public ResponseEntity<ApiResponse<StudentResponse>> generateStudentPassword(
+            @PathVariable UUID studentId,
+            @Valid @RequestBody GenerateStudentPasswordRequest request) {
+
+        StudentResponse response = studentManagementService.generateStudentPassword(studentId, request, currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(response, "Login credentials generated successfully"));
     }
 }

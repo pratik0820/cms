@@ -28,7 +28,7 @@ import java.util.UUID;
 @RequestMapping("/api/super-admin/leads")
 @RequiredArgsConstructor
 @Tag(name = "Super Admin - Leads", description = "Lead inquiry and admission pipeline APIs")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class SuperAdminLeadController extends BaseController {
 
     private final LeadManagementService leadManagementService;
@@ -42,12 +42,23 @@ public class SuperAdminLeadController extends BaseController {
             @RequestParam(required = false) String leadSource,
             @RequestParam(required = false) UUID courseId,
             @RequestParam(required = false) UUID batchId,
+            @RequestParam(required = false) UUID createdByUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        boolean isSuperAdmin = currentUser().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        UUID queryCreatedByUserId = isSuperAdmin ? createdByUserId : currentUserId();
+
         return ResponseEntity.ok(ApiResponse.success(leadManagementService.getLeads(
-                search, branchId, status, leadSource, courseId, batchId, page, size
+                search, branchId, status, leadSource, courseId, batchId, queryCreatedByUserId, page, size
         )));
+    }
+
+    @GetMapping("/debug")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getDebugLeads() {
+        return ResponseEntity.ok(ApiResponse.success(leadManagementService.getDebugLeads()));
     }
 
     @GetMapping("/{leadId}")

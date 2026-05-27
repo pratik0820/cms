@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -104,11 +105,43 @@ public class LeadResponse {
     private String status;
     private UUID assignedToUserId;
     private String assignedToName;
+    private UUID createdByUserId;
+    private String createdByName;
     private UUID convertedStudentId;
     private LocalDateTime convertedAt;
     private List<FollowUpResponse> followUps;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // ─── Fee & Payment Structure ───────────────────────────────────────────────
+
+    private BigDecimal totalBaseFee;
+    private String meritScholarship;
+    private BigDecimal additionalConcessionAmount;
+    private String additionalCategoryName;
+    private BigDecimal additionalCategoryDiscountAmount;
+    private BigDecimal finalPayableFee;
+    private BigDecimal tokenAmountPaid;
+    private String modeOfPayment;
+    private String paymentStructure;
+    private Boolean financialAssistanceRequired;
+    private Boolean externalScholarshipApplicable;
+    private String externalScholarshipDetails;
+    private String tokenPaymentMode;
+    private String tokenRemarks;
+
+    private List<InstalmentResponse> installments;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InstalmentResponse {
+        private UUID id;
+        private Integer instalmentNumber;
+        private BigDecimal amount;
+        private LocalDate dueDate;
+    }
 
     @Data
     @Builder

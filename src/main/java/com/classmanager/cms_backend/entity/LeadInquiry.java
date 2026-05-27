@@ -3,6 +3,7 @@ package com.classmanager.cms_backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -212,6 +213,55 @@ public class LeadInquiry extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "counsellor_user_id")
     private User counsellorUser;
+
+    // ─── Fee & Payment Structure ───────────────────────────────────────────────
+
+    @Column(name = "total_base_fee", precision = 12, scale = 2)
+    private BigDecimal totalBaseFee;
+
+    @Column(name = "merit_scholarship", length = 80)
+    private String meritScholarship;
+
+    @Column(name = "additional_concession_amount", precision = 12, scale = 2)
+    private BigDecimal additionalConcessionAmount;
+
+    @Column(name = "additional_category_name", length = 120)
+    private String additionalCategoryName;
+
+    @Column(name = "additional_category_discount_amount", precision = 12, scale = 2)
+    private BigDecimal additionalCategoryDiscountAmount;
+
+    @Column(name = "final_payable_fee", precision = 12, scale = 2)
+    private BigDecimal finalPayableFee;
+
+    @Column(name = "token_amount_paid", precision = 12, scale = 2)
+    private BigDecimal tokenAmountPaid;
+
+    @Column(name = "mode_of_payment", length = 80)
+    private String modeOfPayment;
+
+    @Column(name = "payment_structure", length = 80)
+    private String paymentStructure;
+
+    @Column(name = "financial_assistance_required")
+    private Boolean financialAssistanceRequired;
+
+    @Column(name = "external_scholarship_applicable")
+    private Boolean externalScholarshipApplicable;
+
+    @Column(name = "external_scholarship_details", length = 500)
+    private String externalScholarshipDetails;
+
+    @Column(name = "token_payment_mode", length = 80)
+    private String tokenPaymentMode;
+
+    @Column(name = "token_remarks", length = 1000)
+    private String tokenRemarks;
+
+    @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("instalmentNumber ASC")
+    @Builder.Default
+    private List<LeadInquiryInstalment> installments = new ArrayList<>();
 
     // ─── System / Status Fields ────────────────────────────────────────────────
 

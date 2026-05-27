@@ -8,6 +8,8 @@ import com.classmanager.cms_backend.exception.ResourceNotFoundException;
 import com.classmanager.cms_backend.repository.BranchRepository;
 import com.classmanager.cms_backend.repository.OperationalRecordRepository;
 import com.classmanager.cms_backend.repository.StudentRepository;
+import com.classmanager.cms_backend.repository.StudentEnrolmentRepository;
+import com.classmanager.cms_backend.repository.FeeTransactionRepository;
 import com.classmanager.cms_backend.repository.TeacherRepository;
 import com.classmanager.cms_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +48,8 @@ public class SuperAdminDashboardService {
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
     private final OperationalRecordRepository operationalRecordRepository;
+    private final StudentEnrolmentRepository studentEnrolmentRepository;
+    private final FeeTransactionRepository feeTransactionRepository;
 
     public SuperAdminDashboardResponse getDashboard(LocalDate fromDate, LocalDate toDate, UUID branchId) {
         LocalDate resolvedToDate = toDate != null ? toDate : LocalDate.now();
@@ -108,9 +112,9 @@ public class SuperAdminDashboardService {
                                 .name(item.getName())
                                 .build())
                         .toList())
-                .overview(buildOverview(branchId, feeRecords))
+                .overview(buildOverview(branchId))
                 .studentGrowth(buildStudentGrowth(branchId, resolvedToDate))
-                .feeCollection(buildFeeCollection(feeRecords, resolvedFromDate, resolvedToDate))
+                .feeCollection(buildFeeCollection(branchId, resolvedFromDate, resolvedToDate))
                 .attendanceOverview(buildAttendanceOverview(attendanceRecords))
                 .leadConversionOverview(buildLeadOverview(leadRecords))
                 .recentActivities(buildActivities(activityRecords))
@@ -118,7 +122,7 @@ public class SuperAdminDashboardService {
                 .build();
     }
 
-    private SuperAdminDashboardResponse.Overview buildOverview(UUID branchId, List<OperationalRecord> feeRecords) {
+    private SuperAdminDashboardResponse.Overview buildOverview(UUID branchId) {
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LocalDateTime nextMonthStart = monthStart.plusMonths(1);
 
@@ -143,25 +147,45 @@ public class SuperAdminDashboardService {
                 ? userRepository.countByRoleNameCreatedBetween(UserRole.ADMIN.name(), monthStart, nextMonthStart)
                 : userRepository.countByRoleNameAndBranchIdCreatedBetween(UserRole.ADMIN.name(), branchId, monthStart, nextMonthStart);
 
-        BigDecimal totalFeesCollected = feeRecords.stream()
-                .map(OperationalRecord::getPaidAmount)
-                .filter(value -> value != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal pendingFees = feeRecords.stream()
-                .map(OperationalRecord::getPendingAmount)
+        List<com.classmanager.cms_backend.entity.FeeTransaction> allTransactions = feeTransactionRepository.findAll().stream()
+                .filter(t -> !t.isDeleted())
+                .filter(t -> branchId == null || t.getEnrolment().getBatch().getBranch().getId().equals(branchId))
+                .toList();
+
+        List<com.classmanager.cms_backend.entity.StudentEnrolment> allEnrolments = studentEnrolmentRepository.findAll().stream()
+                .filter(e -> !e.isDeleted())
+                .filter(e -> branchId == null || e.getBatch().getBranch().getId().equals(branchId))
+                .toList();
+
+        BigDecimal totalFeesCollected = allTransactions.stream()
+                .map(com.classmanager.cms_backend.entity.FeeTransaction::getAmountReceived)
                 .filter(value -> value != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal feesThisMonth = feeRecords.stream()
-                .filter(record -> isWithinMonth(record.getEventDate(), YearMonth.now()))
-                .map(OperationalRecord::getPaidAmount)
+        BigDecimal feesThisMonth = allTransactions.stream()
+                .filter(t -> t.getTransactionDate() != null && isWithinMonth(t.getTransactionDate().toLocalDate(), YearMonth.now()))
+                .map(com.classmanager.cms_backend.entity.FeeTransaction::getAmountReceived)
                 .filter(value -> value != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal pendingThisMonth = feeRecords.stream()
-                .filter(record -> isWithinMonth(record.getEventDate(), YearMonth.now()))
-                .map(OperationalRecord::getPendingAmount)
-                .filter(value -> value != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal pendingFees = BigDecimal.ZERO;
+        BigDecimal pendingThisMonth = BigDecimal.ZERO;
+
+        for (com.classmanager.cms_backend.entity.StudentEnrolment e : allEnrolments) {
+            for (com.classmanager.cms_backend.entity.EnrolmentInstalment inst : e.getInstalments()) {
+                if (inst.isDeleted()) continue;
+                BigDecimal amount = inst.getAmount();
+                BigDecimal paid = inst.getPaidAmount() != null ? inst.getPaidAmount() : BigDecimal.ZERO;
+                BigDecimal balance = amount.subtract(paid);
+                
+                if (balance.compareTo(BigDecimal.ZERO) > 0) {
+                    pendingFees = pendingFees.add(balance);
+                    if (inst.getDueDate() != null && isWithinMonth(inst.getDueDate(), YearMonth.now())) {
+                        pendingThisMonth = pendingThisMonth.add(balance);
+                    }
+                }
+            }
+        }
 
         return SuperAdminDashboardResponse.Overview.builder()
                 .totalStudents(SuperAdminDashboardResponse.MetricCard.builder()
@@ -205,27 +229,53 @@ public class SuperAdminDashboardService {
         return points;
     }
 
-    private List<SuperAdminDashboardResponse.FeeCollectionPoint> buildFeeCollection(List<OperationalRecord> feeRecords,
+    private List<SuperAdminDashboardResponse.FeeCollectionPoint> buildFeeCollection(UUID branchId,
                                                                                     LocalDate fromDate,
                                                                                     LocalDate toDate) {
-        Map<YearMonth, List<OperationalRecord>> grouped = feeRecords.stream()
-                .filter(record -> record.getEventDate() != null)
-                .collect(Collectors.groupingBy(record -> YearMonth.from(record.getEventDate())));
+        
+        List<com.classmanager.cms_backend.entity.FeeTransaction> transactions = feeTransactionRepository.findAll().stream()
+                .filter(t -> !t.isDeleted() && t.getTransactionDate() != null)
+                .filter(t -> branchId == null || t.getEnrolment().getBatch().getBranch().getId().equals(branchId))
+                .filter(t -> !t.getTransactionDate().toLocalDate().isBefore(fromDate) && !t.getTransactionDate().toLocalDate().isAfter(toDate))
+                .toList();
 
+        Map<YearMonth, List<com.classmanager.cms_backend.entity.FeeTransaction>> grouped = transactions.stream()
+                .collect(Collectors.groupingBy(t -> YearMonth.from(t.getTransactionDate())));
+
+        // For pending fees per month in the chart, we might need to calculate the pending amounts due in each month
+        List<com.classmanager.cms_backend.entity.StudentEnrolment> enrolments = studentEnrolmentRepository.findAll().stream()
+                .filter(e -> !e.isDeleted())
+                .filter(e -> branchId == null || e.getBatch().getBranch().getId().equals(branchId))
+                .toList();
+                
         List<SuperAdminDashboardResponse.FeeCollectionPoint> points = new ArrayList<>();
         YearMonth startMonth = YearMonth.from(fromDate);
         YearMonth endMonth = YearMonth.from(toDate);
         YearMonth cursor = startMonth;
+        
         while (!cursor.isAfter(endMonth)) {
-            List<OperationalRecord> records = grouped.getOrDefault(cursor, List.of());
+            List<com.classmanager.cms_backend.entity.FeeTransaction> records = grouped.getOrDefault(cursor, List.of());
             BigDecimal collected = records.stream()
-                    .map(OperationalRecord::getPaidAmount)
+                    .map(com.classmanager.cms_backend.entity.FeeTransaction::getAmountReceived)
                     .filter(value -> value != null)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal pending = records.stream()
-                    .map(OperationalRecord::getPendingAmount)
-                    .filter(value -> value != null)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            final YearMonth currentCursor = cursor;
+            BigDecimal pending = BigDecimal.ZERO;
+            for (com.classmanager.cms_backend.entity.StudentEnrolment e : enrolments) {
+                for (com.classmanager.cms_backend.entity.EnrolmentInstalment inst : e.getInstalments()) {
+                    if (inst.isDeleted() || inst.getDueDate() == null) continue;
+                    if (YearMonth.from(inst.getDueDate()).equals(currentCursor)) {
+                        BigDecimal amount = inst.getAmount();
+                        BigDecimal paid = inst.getPaidAmount() != null ? inst.getPaidAmount() : BigDecimal.ZERO;
+                        BigDecimal balance = amount.subtract(paid);
+                        if (balance.compareTo(BigDecimal.ZERO) > 0) {
+                            pending = pending.add(balance);
+                        }
+                    }
+                }
+            }
+            
             points.add(SuperAdminDashboardResponse.FeeCollectionPoint.builder()
                     .month(shortMonth(cursor))
                     .feesCollected(collected)

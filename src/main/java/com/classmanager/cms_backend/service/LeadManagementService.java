@@ -63,6 +63,7 @@ public class LeadManagementService {
                                            String leadSource,
                                            UUID courseId,
                                            UUID batchId,
+                                           UUID createdByUserId,
                                            int page,
                                            int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -73,17 +74,18 @@ public class LeadManagementService {
                 trimToNull(leadSource),
                 courseId,
                 batchId,
+                createdByUserId,
                 pageable
         );
 
         return LeadManagementResponse.builder()
                 .summary(LeadManagementResponse.Summary.builder()
-                        .totalLeads(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, null))
-                        .newLeads(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "NEW"))
-                        .contacted(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "CONTACTED"))
-                        .inFollowUp(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "IN_FOLLOW_UP"))
-                        .converted(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "CONVERTED"))
-                        .notInterested(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "NOT_INTERESTED"))
+                        .totalLeads(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, null, createdByUserId))
+                        .newLeads(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "NEW", createdByUserId))
+                        .contacted(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "CONTACTED", createdByUserId))
+                        .inFollowUp(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "IN_FOLLOW_UP", createdByUserId))
+                        .converted(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "CONVERTED", createdByUserId))
+                        .notInterested(leadInquiryRepository.countByOptionalBranchAndStatus(branchId, "NOT_INTERESTED", createdByUserId))
                         .build())
                 .content(leadPage.getContent().stream().map(lead -> toResponse(lead, false)).toList())
                 .page(LeadManagementResponse.PageMeta.builder()
@@ -175,17 +177,36 @@ public class LeadManagementService {
 
         StudentEnrolmentResponse enrolment = null;
 
-        if (request.getBatchId() != null && request.getAgreedTotalFee() != null
-                && request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
+        UUID finalBatchId = request.getBatchId() != null ? request.getBatchId() : (lead.getBatch() != null ? lead.getBatch().getId() : null);
+        BigDecimal finalTotalFee = request.getAgreedTotalFee() != null ? request.getAgreedTotalFee() : 
+                (lead.getFinalPayableFee() != null ? lead.getFinalPayableFee() : lead.getTotalBaseFee());
+        List<UUID> finalSubjectIds = (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) 
+                ? request.getSubjectIds() 
+                : (lead.getSubjects() != null ? lead.getSubjects().stream().map(Subject::getId).toList() : null);
+
+        if (finalBatchId != null && finalTotalFee != null && finalSubjectIds != null && !finalSubjectIds.isEmpty()) {
             CreateEnrolmentRequest enrolmentRequest = new CreateEnrolmentRequest();
             enrolmentRequest.setStudentId(student.getId());
-            enrolmentRequest.setBatchId(request.getBatchId());
+            enrolmentRequest.setBatchId(finalBatchId);
             enrolmentRequest.setSubjectGroupId(request.getSubjectGroupId());
-            enrolmentRequest.setSubjectIds(request.getSubjectIds());
-            enrolmentRequest.setAgreedTotalFee(request.getAgreedTotalFee());
+            enrolmentRequest.setSubjectIds(finalSubjectIds);
+            enrolmentRequest.setAgreedTotalFee(finalTotalFee);
             enrolmentRequest.setPaymentPlan(request.getPaymentPlan() != null ? request.getPaymentPlan() : FeePaymentPlan.REGULAR);
             enrolmentRequest.setEnrolmentDate(request.getAdmissionDate() != null ? request.getAdmissionDate() : LocalDate.now());
-            enrolmentRequest.setInstalments(request.getInstalments());
+            
+            List<CreateEnrolmentRequest.InstalmentRequest> finalInstalments = request.getInstalments();
+            if ((finalInstalments == null || finalInstalments.isEmpty()) && lead.getInstallments() != null && !lead.getInstallments().isEmpty()) {
+                finalInstalments = lead.getInstallments().stream().map(inst -> {
+                    CreateEnrolmentRequest.InstalmentRequest ir = new CreateEnrolmentRequest.InstalmentRequest();
+                    ir.setInstalmentNumber(inst.getInstalmentNumber());
+                    ir.setLabel("Instalment " + inst.getInstalmentNumber());
+                    ir.setAmount(inst.getAmount());
+                    ir.setDueDate(inst.getDueDate());
+                    return ir;
+                }).toList();
+            }
+            enrolmentRequest.setInstalments(finalInstalments);
+            
             enrolmentRequest.setNotes(request.getNotes());
             enrolment = studentEnrolmentService.createEnrolment(enrolmentRequest);
         }
@@ -314,6 +335,35 @@ public class LeadManagementService {
             lead.setAdmissionLikelihood(trimToNull(r.getAdmissionLikelihood()));
             lead.setRemarks(trimToNull(r.getRemarks()));
             lead.setNextFollowUpAt(r.getNextFollowUpAt());
+            
+            // Fee & Payment Structure
+            lead.setTotalBaseFee(r.getTotalBaseFee());
+            lead.setMeritScholarship(trimToNull(r.getMeritScholarship()));
+            lead.setAdditionalConcessionAmount(r.getAdditionalConcessionAmount());
+            lead.setAdditionalCategoryName(trimToNull(r.getAdditionalCategoryName()));
+            lead.setAdditionalCategoryDiscountAmount(r.getAdditionalCategoryDiscountAmount());
+            lead.setFinalPayableFee(r.getFinalPayableFee());
+            lead.setTokenAmountPaid(r.getTokenAmountPaid());
+            lead.setModeOfPayment(trimToNull(r.getModeOfPayment()));
+            lead.setPaymentStructure(trimToNull(r.getPaymentStructure()));
+            lead.setFinancialAssistanceRequired(r.getFinancialAssistanceRequired());
+            lead.setExternalScholarshipApplicable(r.getExternalScholarshipApplicable());
+            lead.setExternalScholarshipDetails(trimToNull(r.getExternalScholarshipDetails()));
+            lead.setTokenPaymentMode(trimToNull(r.getTokenPaymentMode()));
+            lead.setTokenRemarks(trimToNull(r.getTokenRemarks()));
+
+            if (r.getInstallments() != null) {
+                lead.getInstallments().clear();
+                r.getInstallments().forEach(inst -> {
+                    LeadInquiryInstalment instalment = LeadInquiryInstalment.builder()
+                            .lead(lead)
+                            .instalmentNumber(inst.getInstalmentNumber())
+                            .amount(inst.getAmount())
+                            .dueDate(inst.getDueDate())
+                            .build();
+                    lead.getInstallments().add(instalment);
+                });
+            }
         } else if (request instanceof UpdateLeadRequest r) {
             if (r.getGender() != null) lead.setGender(trimToNull(r.getGender()));
             if (r.getDateOfBirth() != null) lead.setDateOfBirth(r.getDateOfBirth());
@@ -358,6 +408,35 @@ public class LeadManagementService {
             if (r.getAdmissionLikelihood() != null) lead.setAdmissionLikelihood(trimToNull(r.getAdmissionLikelihood()));
             if (r.getRemarks() != null) lead.setRemarks(trimToNull(r.getRemarks()));
             if (r.getNextFollowUpAt() != null) lead.setNextFollowUpAt(r.getNextFollowUpAt());
+
+            // Fee & Payment Structure
+            if (r.getTotalBaseFee() != null) lead.setTotalBaseFee(r.getTotalBaseFee());
+            if (r.getMeritScholarship() != null) lead.setMeritScholarship(trimToNull(r.getMeritScholarship()));
+            if (r.getAdditionalConcessionAmount() != null) lead.setAdditionalConcessionAmount(r.getAdditionalConcessionAmount());
+            if (r.getAdditionalCategoryName() != null) lead.setAdditionalCategoryName(trimToNull(r.getAdditionalCategoryName()));
+            if (r.getAdditionalCategoryDiscountAmount() != null) lead.setAdditionalCategoryDiscountAmount(r.getAdditionalCategoryDiscountAmount());
+            if (r.getFinalPayableFee() != null) lead.setFinalPayableFee(r.getFinalPayableFee());
+            if (r.getTokenAmountPaid() != null) lead.setTokenAmountPaid(r.getTokenAmountPaid());
+            if (r.getModeOfPayment() != null) lead.setModeOfPayment(trimToNull(r.getModeOfPayment()));
+            if (r.getPaymentStructure() != null) lead.setPaymentStructure(trimToNull(r.getPaymentStructure()));
+            if (r.getFinancialAssistanceRequired() != null) lead.setFinancialAssistanceRequired(r.getFinancialAssistanceRequired());
+            if (r.getExternalScholarshipApplicable() != null) lead.setExternalScholarshipApplicable(r.getExternalScholarshipApplicable());
+            if (r.getExternalScholarshipDetails() != null) lead.setExternalScholarshipDetails(trimToNull(r.getExternalScholarshipDetails()));
+            if (r.getTokenPaymentMode() != null) lead.setTokenPaymentMode(trimToNull(r.getTokenPaymentMode()));
+            if (r.getTokenRemarks() != null) lead.setTokenRemarks(trimToNull(r.getTokenRemarks()));
+
+            if (r.getInstallments() != null) {
+                lead.getInstallments().clear();
+                r.getInstallments().forEach(inst -> {
+                    LeadInquiryInstalment instalment = LeadInquiryInstalment.builder()
+                            .lead(lead)
+                            .instalmentNumber(inst.getInstalmentNumber())
+                            .amount(inst.getAmount())
+                            .dueDate(inst.getDueDate())
+                            .build();
+                    lead.getInstallments().add(instalment);
+                });
+            }
         }
     }
 
@@ -425,9 +504,34 @@ public class LeadManagementService {
                 .counsellorName(lead.getCounsellorUser() != null ? lead.getCounsellorUser().getFullName() : null)
                 .assignedToUserId(lead.getAssignedToUser() != null ? lead.getAssignedToUser().getId() : null)
                 .assignedToName(lead.getAssignedToUser() != null ? lead.getAssignedToUser().getFullName() : null)
+                .createdByUserId(lead.getCreatedByUser() != null ? lead.getCreatedByUser().getId() : null)
+                .createdByName(lead.getCreatedByUser() != null ? lead.getCreatedByUser().getFullName() : null)
                 .convertedStudentId(lead.getConvertedStudent() != null ? lead.getConvertedStudent().getId() : null)
                 .convertedAt(lead.getConvertedAt())
                 .followUps(includeFollowUps ? buildFollowUps(lead) : null)
+                
+                // Fee & Payment Structure
+                .totalBaseFee(lead.getTotalBaseFee())
+                .meritScholarship(lead.getMeritScholarship())
+                .additionalConcessionAmount(lead.getAdditionalConcessionAmount())
+                .additionalCategoryName(lead.getAdditionalCategoryName())
+                .additionalCategoryDiscountAmount(lead.getAdditionalCategoryDiscountAmount())
+                .finalPayableFee(lead.getFinalPayableFee())
+                .tokenAmountPaid(lead.getTokenAmountPaid())
+                .modeOfPayment(lead.getModeOfPayment())
+                .paymentStructure(lead.getPaymentStructure())
+                .financialAssistanceRequired(lead.getFinancialAssistanceRequired())
+                .externalScholarshipApplicable(lead.getExternalScholarshipApplicable())
+                .externalScholarshipDetails(lead.getExternalScholarshipDetails())
+                .tokenPaymentMode(lead.getTokenPaymentMode())
+                .tokenRemarks(lead.getTokenRemarks())
+                .installments(lead.getInstallments().stream().map(inst -> LeadResponse.InstalmentResponse.builder()
+                        .id(inst.getId())
+                        .instalmentNumber(inst.getInstalmentNumber())
+                        .amount(inst.getAmount())
+                        .dueDate(inst.getDueDate())
+                        .build()).toList())
+                        
                 .createdAt(lead.getCreatedAt())
                 .updatedAt(lead.getUpdatedAt())
                 .build();
@@ -713,5 +817,18 @@ public class LeadManagementService {
                 .followUpByName(item.getCreatedByUser() != null ? item.getCreatedByUser().getFullName() : null)
                 .createdAt(item.getCreatedAt())
                 .build();
+    }
+
+    public java.util.List<java.util.Map<String, Object>> getDebugLeads() {
+        return leadInquiryRepository.findAll().stream().map(l -> {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", l.getId());
+            map.put("studentName", l.getStudentName());
+            map.put("branchId", l.getPreferredBranch() != null ? l.getPreferredBranch().getId() : null);
+            map.put("branchName", l.getPreferredBranch() != null ? l.getPreferredBranch().getName() : null);
+            map.put("createdByUserId", l.getCreatedByUser() != null ? l.getCreatedByUser().getId() : null);
+            map.put("createdByName", l.getCreatedByUser() != null ? l.getCreatedByUser().getFullName() : null);
+            return map;
+        }).toList();
     }
 }

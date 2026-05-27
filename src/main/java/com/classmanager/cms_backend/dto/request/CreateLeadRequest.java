@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -108,4 +110,30 @@ public class CreateLeadRequest {
     // ─── Assignment ───────────────────────────────────────────────────────────
 
     private UUID assignedToUserId;
+
+    // ─── Fee & Payment Structure ───────────────────────────────────────────────
+
+    private BigDecimal totalBaseFee;
+    private String meritScholarship;
+    private BigDecimal additionalConcessionAmount;
+    private String additionalCategoryName;
+    private BigDecimal additionalCategoryDiscountAmount;
+    private BigDecimal finalPayableFee;
+    private BigDecimal tokenAmountPaid;
+    private String modeOfPayment;
+    private String paymentStructure;
+    private Boolean financialAssistanceRequired;
+    private Boolean externalScholarshipApplicable;
+    private String externalScholarshipDetails;
+    private String tokenPaymentMode;
+    private String tokenRemarks;
+
+    private List<InstalmentRequest> installments;
+
+    @Data
+    public static class InstalmentRequest {
+        private Integer instalmentNumber;
+        private BigDecimal amount;
+        private LocalDate dueDate;
+    }
 }

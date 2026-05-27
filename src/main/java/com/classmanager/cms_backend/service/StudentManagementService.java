@@ -98,7 +98,9 @@ public class StudentManagementService {
 
     @Transactional(readOnly = true)
     public StudentResponse getStudent(UUID studentId) {
-        return toResponse(loadStudent(studentId));
+        StudentResponse response = toResponse(loadStudent(studentId));
+        response.setEnrolments(studentEnrolmentService.getEnrolmentsByStudent(studentId));
+        return response;
     }
 
     @Transactional
@@ -251,6 +253,58 @@ public class StudentManagementService {
         }
 
         recordStudentActivity("STUDENT_DELETED", student, deletedByUserId, "Student account soft deleted");
+    }
+
+    @Transactional
+    public StudentResponse generateStudentPassword(UUID studentId, com.classmanager.cms_backend.dto.request.GenerateStudentPasswordRequest request, UUID actorUserId) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password and confirm password do not match", "PASSWORD_MISMATCH");
+        }
+
+        Student student = loadStudent(studentId);
+        String normalizedLoginId = request.getLoginId().trim().toLowerCase();
+
+        if (student.getUser() == null) {
+            // Student was converted from a lead — no user account yet. Create one.
+            if (userRepository.existsByLoginIdIgnoreCaseAndIsDeletedFalse(normalizedLoginId)) {
+                throw new ResourceAlreadyExistsException("A user with this login ID already exists.");
+            }
+            String normalizedEmail = trimToNull(student.getEmail());
+            if (normalizedEmail != null && userRepository.existsByEmailIgnoreCaseAndIsDeletedFalse(normalizedEmail)) {
+                // email clash — clear it so login ID becomes the unique identifier
+                normalizedEmail = null;
+            }
+
+            Role studentRole = loadStudentRole();
+            User user = User.builder()
+                    .email(normalizedEmail)
+                    .loginId(normalizedLoginId)
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .fullName(student.getName())
+                    .phone(student.getMobile() != null ? student.getMobile() : "")
+                    .branch(student.getBranch())
+                    .isActive(true)
+                    .roles(Set.of(studentRole))
+                    .build();
+            user = userRepository.save(user);
+            student.setUser(user);
+            student = studentRepository.save(student);
+        } else {
+            // Existing user — update loginId + password
+            User user = student.getUser();
+            if (!user.getLoginId().equalsIgnoreCase(normalizedLoginId)) {
+                if (userRepository.existsByLoginIdIgnoreCaseAndIsDeletedFalse(normalizedLoginId)) {
+                    throw new ResourceAlreadyExistsException("A user with this login ID already exists.");
+                }
+                user.setLoginId(normalizedLoginId);
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            refreshTokenRepository.revokeAllForUser(user.getId(), LocalDateTime.now(), "PASSWORD_RESET_BY_ADMIN");
+            userRepository.save(user);
+        }
+
+        recordStudentActivity("STUDENT_CREDENTIALS_GENERATED", student, actorUserId, "Login credentials set by admin");
+        return toResponse(student);
     }
 
     private Student loadStudent(UUID studentId) {

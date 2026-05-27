@@ -44,6 +44,10 @@ public class EnrolmentInstalment extends BaseEntity {
     private Boolean isPostDatedCheque = false;
 
     /** Updated by the fee collection module when payment is recorded. */
+    @Column(name = "paid_amount", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
     @Column(name = "is_paid", nullable = false)
     @Builder.Default
     private Boolean isPaid = false;

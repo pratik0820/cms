@@ -2932,8 +2932,10 @@ The remaining APIs in this document are the approved super-admin-phase contract 
   "data": {
     "items": [
       {
-        "id": "batch-uuid",
-        "courseId": "CRS0001",
+        "id": "course-uuid",
+        "courseId": "course-uuid",
+        "batchId": "batch-uuid",
+        "batchCode": "CRS0001",
         "standard": "8th",
         "board": "SSC (Maharashtra State Board)",
         "medium": "Marathi",
@@ -2983,8 +2985,10 @@ The remaining APIs in this document are the approved super-admin-phase contract 
 {
   "success": true,
   "data": {
-    "id": "batch-uuid",
-    "courseId": "CRS0001",
+    "id": "course-uuid",
+    "courseId": "course-uuid",
+    "batchId": "batch-uuid",
+    "batchCode": "CRS0001",
     "standard": "8th",
     "board": "SSC (Maharashtra State Board)",
     "medium": "Marathi",
@@ -3050,7 +3054,7 @@ The remaining APIs in this document are the approved super-admin-phase contract 
 ### Notes for Frontend and QA
 
 - Use the current screen APIs above for new integration work.
-- `courseId`, `standardId`, and `subjectId` in these responses are display IDs for the tables. The `id` field is the real UUID to use for edit, view, and delete actions.
+- `courseId` is now the real course UUID for course APIs, `batchId` is the real batch UUID for batch-aware flows, and `batchCode` / `subjectId` are display codes for the table.
 - The screen payloads intentionally omit category, description, sort order, room, class teacher, subject groups, and other non-visible metadata.
 - The API remains extensible. Future fields can be added without changing the present screen contract.
 

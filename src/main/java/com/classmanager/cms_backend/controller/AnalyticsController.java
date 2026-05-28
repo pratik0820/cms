@@ -1,8 +1,8 @@
 package com.classmanager.cms_backend.controller;
 
 import com.classmanager.cms_backend.dto.response.ApiResponse;
-import com.classmanager.cms_backend.dto.response.SuperAdminDashboardResponse;
-import com.classmanager.cms_backend.service.SuperAdminDashboardService;
+import com.classmanager.cms_backend.dto.response.SuperAdminAnalyticsResponse;
+import com.classmanager.cms_backend.service.AnalyticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,20 +20,19 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/super-admin")
 @RequiredArgsConstructor
-@Tag(name = "Super Admin Dashboard", description = "Dashboard APIs for the super admin phase")
-public class SuperAdminDashboardController {
+@Tag(name = "Analytics", description = "Analytics APIs")
+public class AnalyticsController {
 
-    private final SuperAdminDashboardService superAdminDashboardService;
+    private final AnalyticsService analyticsService;
 
-    @GetMapping("/dashboard")
+    @GetMapping("/analytics")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "Get the super admin dashboard data")
-    public ResponseEntity<ApiResponse<SuperAdminDashboardResponse>> getDashboard(
+    @Operation(summary = "Get the analytics data")
+    public ResponseEntity<ApiResponse<SuperAdminAnalyticsResponse>> getAnalytics(
+            @RequestParam(required = false, defaultValue = "overview") String tab,
             @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
-
-        SuperAdminDashboardResponse response = superAdminDashboardService.getDashboard(fromDate, toDate, branchId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(analyticsService.getAnalytics(tab, fromDate, toDate, branchId)));
     }
 }

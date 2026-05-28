@@ -11,7 +11,9 @@ import java.util.UUID;
 @Builder
 public class AcademicCourseDetailResponse {
     private UUID id;
-    private String courseId;
+    private UUID courseId;
+    private UUID batchId;
+    private String batchCode;
     private String standard;
     private String board;
     private String medium;

@@ -252,18 +252,18 @@ List courses for the grid:
 GET {{baseUrl}}/api/academic/courses?branchId={{branchId}}&page=0&size=10
 ```
 
-Save the UUID from `data.items[0].id` when you need to open the View Course page.
+Save `data.items[0].courseId` for course APIs and `data.items[0].batchId` only when you need a batch-specific action.
 
 Get course detail:
 
 ```http
-GET {{baseUrl}}/api/academic/courses/{{batchId}}?branchId={{branchId}}
+GET {{baseUrl}}/api/academic/courses/{{courseId}}?branchId={{branchId}}
 ```
 
 Add a subject from the View Course modal:
 
 ```http
-POST {{baseUrl}}/api/academic/courses/{{batchId}}/subjects?branchId={{branchId}}
+POST {{baseUrl}}/api/academic/courses/{{courseId}}/subjects?branchId={{branchId}}
 ```
 
 Body:
@@ -277,14 +277,14 @@ Body:
 Important:
 
 - Do not send `category`, `description`, `sortOrder`, `subjectGroups`, `room`, `classTeacherId`, `daysOfWeek`, `startDate`, `endDate`, or other non-visible fields from these screens.
-- Use `id` for API actions and the returned `courseId` / `standardId` / `subjectId` only for display in the table.
+- Use `courseId` for course APIs, `batchId` for batch-aware flows, and `subjectId` only as the display code in the table.
 
 ## 7. Teacher Flow
 
 Create teacher:
 
 ```http
-POST {{baseUrl}}/api/users/teachers
+POST {{baseUrl}}/api/super-admin/teachers
 ```
 
 Body:

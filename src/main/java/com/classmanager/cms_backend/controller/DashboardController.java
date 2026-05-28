@@ -1,8 +1,8 @@
 package com.classmanager.cms_backend.controller;
 
 import com.classmanager.cms_backend.dto.response.ApiResponse;
-import com.classmanager.cms_backend.dto.response.SuperAdminAnalyticsResponse;
-import com.classmanager.cms_backend.service.SuperAdminAnalyticsService;
+import com.classmanager.cms_backend.dto.response.SuperAdminDashboardResponse;
+import com.classmanager.cms_backend.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,21 +20,18 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/super-admin")
 @RequiredArgsConstructor
-@Tag(name = "Super Admin Analytics", description = "Analytics APIs for the super admin phase")
-public class SuperAdminAnalyticsController {
+@Tag(name = "Dashboard", description = "Dashboard APIs")
+public class DashboardController {
 
-    private final SuperAdminAnalyticsService superAdminAnalyticsService;
+    private final DashboardService dashboardService;
 
-    @GetMapping("/analytics")
+    @GetMapping("/dashboard")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "Get the super admin analytics data")
-    public ResponseEntity<ApiResponse<SuperAdminAnalyticsResponse>> getAnalytics(
-            @RequestParam(required = false, defaultValue = "overview") String tab,
+    @Operation(summary = "Get the dashboard data")
+    public ResponseEntity<ApiResponse<SuperAdminDashboardResponse>> getDashboard(
             @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
-
-        SuperAdminAnalyticsResponse response = superAdminAnalyticsService.getAnalytics(tab, fromDate, toDate, branchId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(dashboardService.getDashboard(fromDate, toDate, branchId)));
     }
 }

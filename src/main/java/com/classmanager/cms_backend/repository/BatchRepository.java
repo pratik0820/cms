@@ -22,6 +22,8 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
     List<Batch> findByCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByNameAsc(UUID courseId);
 
+    Optional<Batch> findFirstByBranch_IdAndCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByCreatedAtAsc(UUID branchId, UUID courseId);
+
     Page<Batch> findByBranch_IdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
 
     Page<Batch> findByIsDeletedFalseOrderByNameAsc(Pageable pageable);
@@ -49,16 +51,6 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
     Page<Batch> searchAcademicCourses(@Param("branchId") UUID branchId,
                                       @Param("searchPattern") String searchPattern,
                                       Pageable pageable);
-
-    @Query("""
-            select distinct b from Batch b
-            join fetch b.course c
-            left join fetch c.standardRef s
-            left join fetch c.subjects subjects
-            where b.id = :batchId
-              and b.isDeleted = false
-            """)
-    Optional<Batch> findAcademicCourseDetail(@Param("batchId") UUID batchId);
 
     boolean existsByDisplayCode(String displayCode);
 

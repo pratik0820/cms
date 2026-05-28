@@ -45,4 +45,12 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
             WHERE c.id = :id AND c.isDeleted = false
             """)
     Optional<Course> findByIdWithSubjectGroups(@Param("id") UUID id);
+
+    @Query("""
+            SELECT DISTINCT c FROM Course c
+            LEFT JOIN FETCH c.standardRef s
+            LEFT JOIN FETCH c.subjects subjects
+            WHERE c.id = :id AND c.isDeleted = false
+            """)
+    Optional<Course> findAcademicCourseDetail(@Param("id") UUID id);
 }

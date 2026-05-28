@@ -26,7 +26,6 @@ public class UpdateAcademicCourseRequest {
     @NotBlank(message = "Course name is required")
     private String courseName;
 
-    @NotBlank(message = "Batch name is required")
     private String batchName;
 
     @NotNull(message = "Batch timing is required")

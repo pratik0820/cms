@@ -48,6 +48,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AcademicManagementService {
 
+    private static final String DEFAULT_BATCH_NAME = "Morning Batch";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
 
     private final StandardRepository standardRepository;
@@ -162,12 +163,13 @@ public class AcademicManagementService {
                 .isActive(true)
                 .build();
         course = courseRepository.save(course);
+        UUID savedCourseId = course.getId();
 
         Batch batch = Batch.builder()
                 .branch(branch)
                 .course(course)
                 .displayCode(nextCode("CRS", batchRepository.count() + 1, batchRepository::existsByDisplayCode))
-                .name(normalizeName(request.getBatchName(), "Batch name is required"))
+                .name(resolveBatchName(request.getBatchName()))
                 .academicYear(course.getAcademicYear())
                 .timing(request.getBatchTiming())
                 .timingLabel(buildTimingLabel(request.getStartTime(), request.getEndTime()))
@@ -177,24 +179,25 @@ public class AcademicManagementService {
                 .build();
 
         Batch savedBatch = batchRepository.save(batch);
-        return toAcademicCourseDetailResponse(loadAcademicBatch(savedBatch.getId()));
+        Course savedCourse = courseRepository.findAcademicCourseDetail(savedCourseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course", savedCourseId));
+        return toAcademicCourseDetailResponse(savedCourse, savedBatch);
     }
 
     @Transactional(readOnly = true)
-    public AcademicCourseDetailResponse getCourse(UUID id, UUID branchId, UUID currentBranchId) {
-        Batch batch = loadAcademicBatch(id);
-        ensureBranchAccess(batch, branchId, currentBranchId);
-        return toAcademicCourseDetailResponse(batch);
+    public AcademicCourseDetailResponse getCourse(UUID courseId, UUID branchId, UUID currentBranchId) {
+        Course course = loadAcademicCourse(courseId);
+        Batch batch = loadCourseBatch(course, branchId, currentBranchId);
+        return toAcademicCourseDetailResponse(course, batch);
     }
 
     @Transactional
-    public AcademicCourseDetailResponse updateCourse(UUID id, UUID branchId, UUID currentBranchId, UpdateAcademicCourseRequest request) {
-        Batch batch = loadAcademicBatch(id);
-        ensureBranchAccess(batch, branchId, currentBranchId);
+    public AcademicCourseDetailResponse updateCourse(UUID courseId, UUID branchId, UUID currentBranchId, UpdateAcademicCourseRequest request) {
+        Course course = loadAcademicCourse(courseId);
+        Batch batch = loadCourseBatch(course, branchId, currentBranchId);
         Standard standard = resolveStandard(request.getStandard(), request.getBoard());
         validateTimeRange(request.getStartTime(), request.getEndTime());
 
-        Course course = batch.getCourse();
         course.setStandardRef(standard);
         course.setBoard(request.getBoard());
         course.setStandard(standard.getName());
@@ -202,7 +205,7 @@ public class AcademicManagementService {
         course.setAcademicYear(normalizeName(request.getAcademicYear(), "Academic year is required"));
         course.setName(normalizeName(request.getCourseName(), "Course name is required"));
 
-        batch.setName(normalizeName(request.getBatchName(), "Batch name is required"));
+        batch.setName(resolveBatchName(request.getBatchName()));
         batch.setAcademicYear(course.getAcademicYear());
         batch.setTiming(request.getBatchTiming());
         batch.setTimingLabel(buildTimingLabel(request.getStartTime(), request.getEndTime()));
@@ -211,18 +214,19 @@ public class AcademicManagementService {
 
         courseRepository.save(course);
         batchRepository.save(batch);
-        return toAcademicCourseDetailResponse(loadAcademicBatch(id));
+        Course updatedCourse = loadAcademicCourse(courseId);
+        Batch updatedBatch = loadCourseBatch(updatedCourse, branchId, currentBranchId);
+        return toAcademicCourseDetailResponse(updatedCourse, updatedBatch);
     }
 
     @Transactional
-    public void deleteCourse(UUID id, UUID branchId, UUID currentBranchId) {
-        Batch batch = loadAcademicBatch(id);
-        ensureBranchAccess(batch, branchId, currentBranchId);
+    public void deleteCourse(UUID courseId, UUID branchId, UUID currentBranchId) {
+        Course course = loadAcademicCourse(courseId);
+        Batch batch = loadCourseBatch(course, branchId, currentBranchId);
         batch.softDelete();
         batch.setIsActive(false);
         batchRepository.save(batch);
 
-        Course course = batch.getCourse();
         course.softDelete();
         course.setIsActive(false);
         courseRepository.save(course);
@@ -230,10 +234,8 @@ public class AcademicManagementService {
 
     @Transactional
     public CourseSubjectResponse addSubject(UUID courseId, UUID branchId, UUID currentBranchId, CreateCourseSubjectRequest request) {
-        Batch batch = loadAcademicBatch(courseId);
-        ensureBranchAccess(batch, branchId, currentBranchId);
-
-        Course course = batch.getCourse();
+        Course course = loadAcademicCourse(courseId);
+        loadCourseBatch(course, branchId, currentBranchId);
         String subjectName = normalizeName(request.getSubjectName(), "Subject name is required");
         boolean alreadyAttached = course.getSubjects().stream()
                 .anyMatch(subject -> subjectName.equalsIgnoreCase(subject.getDisplayName()));
@@ -261,9 +263,8 @@ public class AcademicManagementService {
 
     @Transactional
     public CourseSubjectResponse updateSubject(UUID courseId, UUID subjectId, UUID branchId, UUID currentBranchId, UpdateCourseSubjectRequest request) {
-        Batch batch = loadAcademicBatch(courseId);
-        ensureBranchAccess(batch, branchId, currentBranchId);
-        Course course = batch.getCourse();
+        Course course = loadAcademicCourse(courseId);
+        loadCourseBatch(course, branchId, currentBranchId);
         Subject subject = course.getSubjects().stream()
                 .filter(item -> item.getId().equals(subjectId))
                 .findFirst()
@@ -277,9 +278,8 @@ public class AcademicManagementService {
 
     @Transactional
     public void deleteSubject(UUID courseId, UUID subjectId, UUID branchId, UUID currentBranchId) {
-        Batch batch = loadAcademicBatch(courseId);
-        ensureBranchAccess(batch, branchId, currentBranchId);
-        Course course = batch.getCourse();
+        Course course = loadAcademicCourse(courseId);
+        loadCourseBatch(course, branchId, currentBranchId);
         Subject subject = course.getSubjects().stream()
                 .filter(item -> item.getId().equals(subjectId))
                 .findFirst()
@@ -305,9 +305,10 @@ public class AcademicManagementService {
     private AcademicCourseListItemResponse toAcademicCourseListItemResponse(Batch batch) {
         Course course = batch.getCourse();
         return AcademicCourseListItemResponse.builder()
-                .id(batch.getId())
-                .courseUuid(course.getId())
-                .courseId(resolveCourseCode(batch))
+                .id(course.getId())
+                .courseId(course.getId())
+                .batchId(batch.getId())
+                .batchCode(resolveBatchCode(batch))
                 .standard(course.getStandard())
                 .board(course.getBoard() != null ? course.getBoard().getDisplayName() : null)
                 .medium(course.getMedium())
@@ -318,8 +319,7 @@ public class AcademicManagementService {
                 .build();
     }
 
-    private AcademicCourseDetailResponse toAcademicCourseDetailResponse(Batch batch) {
-        Course course = batch.getCourse();
+    private AcademicCourseDetailResponse toAcademicCourseDetailResponse(Course course, Batch batch) {
         List<CourseSubjectResponse> subjects = course.getSubjects() == null ? List.of() : course.getSubjects().stream()
                 .filter(subject -> !subject.isDeleted())
                 .sorted(Comparator.comparing(Subject::getDisplayName, String.CASE_INSENSITIVE_ORDER))
@@ -327,17 +327,19 @@ public class AcademicManagementService {
                 .toList();
 
         return AcademicCourseDetailResponse.builder()
-                .id(batch.getId())
-                .courseId(String.valueOf(batch.getCourse().getId()))
+                .id(course.getId())
+                .courseId(course.getId())
+                .batchId(batch != null ? batch.getId() : null)
+                .batchCode(batch != null ? resolveBatchCode(batch) : null)
                 .standard(course.getStandard())
                 .board(course.getBoard() != null ? course.getBoard().getDisplayName() : null)
                 .medium(course.getMedium())
                 .academicYear(course.getAcademicYear())
                 .courseName(course.getName())
-                .batchName(batch.getName())
-                .batchTiming(buildTimingLabel(batch.getStartTime(), batch.getEndTime()))
-                .startTime(batch.getStartTime())
-                .endTime(batch.getEndTime())
+                .batchName(batch != null ? batch.getName() : null)
+                .batchTiming(batch != null ? buildTimingLabel(batch.getStartTime(), batch.getEndTime()) : null)
+                .startTime(batch != null ? batch.getStartTime() : null)
+                .endTime(batch != null ? batch.getEndTime() : null)
                 .subjects(subjects)
                 .build();
     }
@@ -380,9 +382,24 @@ public class AcademicManagementService {
         }
     }
 
-    private Batch loadAcademicBatch(UUID batchId) {
-        return batchRepository.findAcademicCourseDetail(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course", batchId));
+    private Course loadAcademicCourse(UUID courseId) {
+        return courseRepository.findAcademicCourseDetail(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course", courseId));
+    }
+
+    private Batch loadCourseBatch(Course course, UUID branchId, UUID currentBranchId) {
+        UUID expectedBranchId = branchId != null ? branchId : currentBranchId;
+        if (expectedBranchId != null) {
+            return batchRepository.findFirstByBranch_IdAndCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByCreatedAtAsc(
+                            expectedBranchId, course.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Course", course.getId()));
+        }
+
+        List<Batch> batches = batchRepository.findByCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByNameAsc(course.getId());
+        if (batches.isEmpty()) {
+            throw new ResourceNotFoundException("Course", course.getId());
+        }
+        return batches.get(0);
     }
 
     private CourseCategory resolveCategory(BoardType board) {
@@ -421,8 +438,12 @@ public class AcademicManagementService {
         return StringUtils.hasText(value) ? "%" + value.trim().toLowerCase(Locale.ENGLISH) + "%" : null;
     }
 
-    private String resolveCourseCode(Batch batch) {
+    private String resolveBatchCode(Batch batch) {
         return StringUtils.hasText(batch.getDisplayCode()) ? batch.getDisplayCode() : "CRS-" + batch.getId();
+    }
+
+    private String resolveBatchName(String batchName) {
+        return StringUtils.hasText(batchName) ? batchName.trim() : DEFAULT_BATCH_NAME;
     }
 
     private String nextCode(String prefix, long startAt, java.util.function.Predicate<String> exists) {

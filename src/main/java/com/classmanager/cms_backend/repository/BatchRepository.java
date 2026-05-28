@@ -22,6 +22,8 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
     List<Batch> findByCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByNameAsc(UUID courseId);
 
+    Optional<Batch> findFirstByBranch_IdAndCourse_IdAndIsActiveTrueAndIsDeletedFalseOrderByCreatedAtAsc(UUID branchId, UUID courseId);
+
     Page<Batch> findByBranch_IdAndIsDeletedFalseOrderByNameAsc(UUID branchId, Pageable pageable);
 
     Page<Batch> findByIsDeletedFalseOrderByNameAsc(Pageable pageable);

@@ -20,5 +20,4 @@ public class CmsBackendApplication {
 		SpringApplication.run(CmsBackendApplication.class, args);
 		log.info("Cms Application Started");
 	}
-
 }

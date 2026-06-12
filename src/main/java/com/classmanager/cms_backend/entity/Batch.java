@@ -92,6 +92,9 @@ public class Batch extends BaseEntity {
     @Column(name = "room", length = 50)
     private String room;
 
+    @Column(name = "section", length = 50)
+    private String section;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

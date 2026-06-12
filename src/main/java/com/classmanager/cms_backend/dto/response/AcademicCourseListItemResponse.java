@@ -18,4 +18,5 @@ public class AcademicCourseListItemResponse {
     private String courseName;
     private String batchName;
     private String batchTiming;
+    private String section;
 }

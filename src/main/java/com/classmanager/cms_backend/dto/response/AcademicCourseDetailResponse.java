@@ -11,6 +11,7 @@ import java.util.UUID;
 @Builder
 public class AcademicCourseDetailResponse {
     private UUID id;
+    private UUID courseUuid;
     private String courseId;
     private String standard;
     private String board;
@@ -21,5 +22,6 @@ public class AcademicCourseDetailResponse {
     private String batchTiming;
     private LocalTime startTime;
     private LocalTime endTime;
+    private String section;
     private List<CourseSubjectResponse> subjects;
 }

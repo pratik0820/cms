@@ -75,4 +75,14 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
             @Param("branchId") UUID branchId,
             @Param("courseId") UUID courseId,
             @Param("academicYear") String academicYear);
+
+    @Query("""
+           SELECT b FROM Batch b
+           WHERE b.isDeleted = false AND b.isActive = true
+             AND (:branchId IS NULL OR b.branch.id = :branchId)
+             AND (:standard IS NULL OR b.course.standard = :standard)
+           """)
+    List<Batch> findDashboardBatches(
+            @Param("branchId") UUID branchId, 
+            @Param("standard") String standard);
 }

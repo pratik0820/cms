@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -50,8 +51,13 @@ public class AcademicManagementController extends BaseController {
 
     @GetMapping("/subjects")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "List all global active subjects for forms")
-    public ResponseEntity<ApiResponse<List<CourseSubjectResponse>>> listSubjects() {
+    @Operation(summary = "List all global active subjects for forms or filter by standard")
+    public ResponseEntity<ApiResponse<List<CourseSubjectResponse>>> listSubjects(
+            @RequestParam(required = false) String standard
+    ) {
+        if (StringUtils.hasText(standard)) {
+            return ResponseEntity.ok(ApiResponse.success(academicManagementService.listSubjectsByStandard(standard)));
+        }
         return ResponseEntity.ok(ApiResponse.success(academicManagementService.listGlobalSubjects()));
     }
 

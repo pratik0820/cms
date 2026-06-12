@@ -38,6 +38,7 @@ public class SuperAdminBranchController extends BaseController {
     private final SuperAdminBranchService superAdminBranchService;
 
     @GetMapping("/options")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Get active branch options for filters and selectors")
     public ResponseEntity<ApiResponse<List<SuperAdminDashboardResponse.BranchOption>>> getBranchOptions() {
         return ResponseEntity.ok(ApiResponse.success(superAdminBranchService.getBranchOptions()));

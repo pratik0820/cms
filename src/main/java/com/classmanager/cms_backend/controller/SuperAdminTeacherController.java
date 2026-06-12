@@ -30,7 +30,7 @@ import java.util.UUID;
 @RequestMapping("/api/super-admin/teachers")
 @RequiredArgsConstructor
 @Tag(name = "Super Admin - Teacher Management", description = "Teacher management APIs for the super admin phase")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class SuperAdminTeacherController extends BaseController {
 
     private final SuperAdminTeacherService superAdminTeacherService;

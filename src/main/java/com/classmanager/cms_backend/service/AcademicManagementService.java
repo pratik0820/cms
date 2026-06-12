@@ -90,6 +90,17 @@ public class AcademicManagementService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CourseSubjectResponse> listSubjectsByStandard(String standard) {
+        return courseRepository.findByStandardAndIsActiveTrueAndIsDeletedFalseOrderBySortOrderAsc(standard).stream()
+                .flatMap(course -> course.getSubjects().stream())
+                .filter(subject -> Boolean.TRUE.equals(subject.getIsActive()) && !subject.isDeleted())
+                .distinct()
+                .sorted(Comparator.comparing(Subject::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .map(this::toCourseSubjectResponse)
+                .toList();
+    }
+
     @Transactional
     public StandardResponse createStandard(CreateStandardRequest request) {
         String standardName = normalizeStandard(request.getStandard());
@@ -173,6 +184,7 @@ public class AcademicManagementService {
                 .timingLabel(buildTimingLabel(request.getStartTime(), request.getEndTime()))
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
+                .section(trimToNull(request.getSection()))
                 .isActive(true)
                 .build();
 
@@ -208,6 +220,7 @@ public class AcademicManagementService {
         batch.setTimingLabel(buildTimingLabel(request.getStartTime(), request.getEndTime()));
         batch.setStartTime(request.getStartTime());
         batch.setEndTime(request.getEndTime());
+        batch.setSection(trimToNull(request.getSection()));
 
         courseRepository.save(course);
         batchRepository.save(batch);
@@ -315,6 +328,7 @@ public class AcademicManagementService {
                 .courseName(course.getName())
                 .batchName(batch.getName())
                 .batchTiming(buildTimingLabel(batch.getStartTime(), batch.getEndTime()))
+                .section(batch.getSection())
                 .build();
     }
 
@@ -328,6 +342,7 @@ public class AcademicManagementService {
 
         return AcademicCourseDetailResponse.builder()
                 .id(batch.getId())
+                .courseUuid(course.getId())
                 .courseId(String.valueOf(batch.getCourse().getId()))
                 .standard(course.getStandard())
                 .board(course.getBoard() != null ? course.getBoard().getDisplayName() : null)
@@ -338,6 +353,7 @@ public class AcademicManagementService {
                 .batchTiming(buildTimingLabel(batch.getStartTime(), batch.getEndTime()))
                 .startTime(batch.getStartTime())
                 .endTime(batch.getEndTime())
+                .section(batch.getSection())
                 .subjects(subjects)
                 .build();
     }

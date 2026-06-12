@@ -1,0 +1,1 @@
+ALTER TABLE batches ADD COLUMN section VARCHAR(50);

@@ -37,4 +37,6 @@ public class UpdateAcademicCourseRequest {
 
     @NotNull(message = "End time is required")
     private LocalTime endTime;
+
+    private String section;
 }

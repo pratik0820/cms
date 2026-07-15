@@ -38,4 +38,17 @@ public interface StudentEnrolmentRepository extends JpaRepository<StudentEnrolme
             Pageable pageable);
 
     long countByBatch_IdAndStatusAndIsDeletedFalse(UUID batchId, EnrolmentStatus status);
+
+    @Query("""
+            SELECT e FROM StudentEnrolment e
+            JOIN e.subjects s
+            WHERE e.batch.id = :batchId
+              AND e.status = :status
+              AND s.id = :subjectId
+              AND e.isDeleted = false
+            """)
+    List<StudentEnrolment> findActiveEnrolmentsByBatchAndSubject(
+            @Param("batchId") UUID batchId,
+            @Param("status") EnrolmentStatus status,
+            @Param("subjectId") UUID subjectId);
 }

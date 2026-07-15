@@ -11,6 +11,9 @@ import com.classmanager.cms_backend.entity.Timetable;
 import com.classmanager.cms_backend.entity.TimetableEntry;
 import com.classmanager.cms_backend.entity.Student;
 import com.classmanager.cms_backend.entity.StudentEnrolment;
+import com.classmanager.cms_backend.entity.Notification;
+import com.classmanager.cms_backend.entity.User;
+import com.classmanager.cms_backend.enums.EnrolmentStatus;
 import com.classmanager.cms_backend.exception.ResourceNotFoundException;
 import com.classmanager.cms_backend.repository.BatchRepository;
 import com.classmanager.cms_backend.repository.StudentEnrolmentRepository;
@@ -19,8 +22,8 @@ import com.classmanager.cms_backend.repository.SubjectRepository;
 import com.classmanager.cms_backend.repository.TeacherRepository;
 import com.classmanager.cms_backend.repository.TimetableEntryRepository;
 import com.classmanager.cms_backend.repository.TimetableRepository;
+import com.classmanager.cms_backend.repository.NotificationRepository;
 import com.classmanager.cms_backend.security.CmsUserDetails;
-import com.classmanager.cms_backend.repository.TimetableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,7 @@ public class TimetableService {
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
     private final StudentEnrolmentRepository studentEnrolmentRepository;
+    private final NotificationRepository notificationRepository;
 
     @Transactional(readOnly = true)
     public TimetableResponse getTimetable(UUID teacherId, LocalDate effectiveDate) {
@@ -171,16 +175,25 @@ public class TimetableService {
         } else if (currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"))) {
             Student student = studentRepository.findByUser_IdAndIsDeletedFalse(currentUser.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("Student profile not found for user", currentUser.getUserId()));
-            List<UUID> enrolledBatchIds = studentEnrolmentRepository.findByStudent_IdAndIsDeletedFalseOrderByEnrolmentDateDesc(student.getId())
+            List<StudentEnrolment> enrolments = studentEnrolmentRepository.findByStudent_IdAndIsDeletedFalseOrderByEnrolmentDateDesc(student.getId())
                     .stream()
-                    .filter(e -> "ACTIVE".equals(e.getStatus().name()))
-                    .map(e -> e.getBatch().getId())
+                    .filter(e -> EnrolmentStatus.ACTIVE.equals(e.getStatus()))
                     .collect(Collectors.toList());
-            if (enrolledBatchIds.isEmpty()) {
+            if (enrolments.isEmpty()) {
                 return new ArrayList<>();
             }
-            return timetableEntryRepository.findByBatchIdInAndClassDateBetweenAndIsDeletedFalse(enrolledBatchIds, startDate, endDate)
-                    .stream().map(this::toEntryResponse).collect(Collectors.toList());
+            List<UUID> enrolledBatchIds = enrolments.stream().map(e -> e.getBatch().getId()).collect(Collectors.toList());
+            List<TimetableEntry> entries = timetableEntryRepository.findByBatchIdInAndClassDateBetweenAndIsDeletedFalse(enrolledBatchIds, startDate, endDate);
+            
+            return entries.stream()
+                    .filter(entry -> entry.getBatch() != null && entry.getSubject() != null &&
+                            enrolments.stream().anyMatch(e -> 
+                                    e.getBatch().getId().equals(entry.getBatch().getId()) &&
+                                    e.getSubjects().stream().anyMatch(sub -> sub.getId().equals(entry.getSubject().getId()))
+                            )
+                    )
+                    .map(this::toEntryResponse)
+                    .collect(Collectors.toList());
         }
         throw new com.classmanager.cms_backend.exception.BadRequestException("User is not authorized to view personal timetables", "INVALID_ROLE");
     }
@@ -224,6 +237,9 @@ public class TimetableService {
         timetable.addEntry(entry);
         timetableEntryRepository.save(entry);
 
+        // Notify
+        sendTimetableNotifications(entry, teacherId);
+
         return toEntryResponse(entry);
     }
 
@@ -249,7 +265,59 @@ public class TimetableService {
         }
 
         timetableEntryRepository.save(entry);
+
+        // Notify
+        if (entry.getTimetable() != null && entry.getTimetable().getTeacher() != null) {
+            sendTimetableNotifications(entry, entry.getTimetable().getTeacher().getId());
+        }
+
         return toEntryResponse(entry);
+    }
+
+    private void sendTimetableNotifications(TimetableEntry entry, UUID teacherId) {
+        try {
+            Teacher teacher = teacherRepository.findById(teacherId).orElse(null);
+            if (teacher != null && teacher.getUser() != null) {
+                String title = "New Class Scheduled";
+                String message = String.format("A class for %s (%s) has been scheduled on %s at %s in Room %s.",
+                        entry.getSubject() != null ? entry.getSubject().getDisplayName() : "N/A",
+                        entry.getBatch() != null ? entry.getBatch().getName() : "N/A",
+                        entry.getClassDate(),
+                        entry.getStartTime(),
+                        entry.getRoom() != null ? entry.getRoom() : "N/A");
+                createNotification(teacher.getUser(), title, message);
+            }
+
+            if (entry.getBatch() != null && entry.getSubject() != null) {
+                List<StudentEnrolment> enrolments = studentEnrolmentRepository
+                        .findActiveEnrolmentsByBatchAndSubject(entry.getBatch().getId(), EnrolmentStatus.ACTIVE, entry.getSubject().getId());
+                for (StudentEnrolment enrolment : enrolments) {
+                    Student student = enrolment.getStudent();
+                    if (student != null && student.getUser() != null) {
+                        String title = "New Class Scheduled";
+                        String message = String.format("A class for %s has been scheduled on %s at %s in Room %s by %s.",
+                                entry.getSubject().getDisplayName(),
+                                entry.getClassDate(),
+                                entry.getStartTime(),
+                                entry.getRoom() != null ? entry.getRoom() : "N/A",
+                                teacher != null ? teacher.getName() : "N/A");
+                        createNotification(student.getUser(), title, message);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send timetable notification: " + e.getMessage());
+        }
+    }
+
+    private void createNotification(User user, String title, String message) {
+        Notification notification = Notification.builder()
+                .user(user)
+                .title(title)
+                .message(message)
+                .isRead(false)
+                .build();
+        notificationRepository.save(notification);
     }
 
     @Transactional
